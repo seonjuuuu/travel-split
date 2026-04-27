@@ -5,7 +5,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trash2, Edit2, ChevronDown, ChevronUp, Clock, Plane } from "lucide-react";
-import { useApp } from "@/contexts/AppContext";
+import { trpc } from "@/lib/trpc";
 import type { Expense, TravelProject } from "@/lib/types";
 import { CATEGORY_CONFIG, formatAmount, formatDate } from "@/lib/types";
 import AddExpenseModal from "@/components/AddExpenseModal";
@@ -14,10 +14,11 @@ interface Props {
   project: TravelProject;
   expenses: Expense[];
   selectedDate: string | null;
+  onRefresh?: () => void;
 }
 
-export default function ExpenseList({ project, expenses, selectedDate }: Props) {
-  const { deleteExpense } = useApp();
+export default function ExpenseList({ project, expenses, selectedDate, onRefresh }: Props) {
+  const deleteExpenseMutation = trpc.expenses.delete.useMutation({ onSuccess: () => onRefresh?.() });
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -25,7 +26,7 @@ export default function ExpenseList({ project, expenses, selectedDate }: Props) 
 
   const handleDelete = (expenseId: string) => {
     if (deleteConfirm === expenseId) {
-      deleteExpense(project.id, expenseId);
+      deleteExpenseMutation.mutate({ id: expenseId });
       setDeleteConfirm(null);
     } else {
       setDeleteConfirm(expenseId);

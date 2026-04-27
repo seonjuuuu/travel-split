@@ -57,6 +57,8 @@ export interface Member {
   name: string;
   isMe: boolean;
   color: string; // avatar background color
+  projectId?: string;
+  createdAt?: Date | string;
 }
 
 export interface Expense {
@@ -67,7 +69,7 @@ export interface Expense {
   payerId: string; // who paid
   participantIds: string[]; // who shares the cost
   date: string; // YYYY-MM-DD (사전 결제는 빈 문자열 허용)
-  note?: string;
+  note?: string | null;
   isPreTrip?: boolean; // 여행 전 사전 결제 여부 (날짜 무관)
 }
 
@@ -79,7 +81,9 @@ export interface TravelProject {
   endDate: string; // YYYY-MM-DD
   members: Member[];
   expenses: Expense[];
-  createdAt: string;
+  createdAt: string | Date;
+  updatedAt?: string | Date;
+  userId?: number;
 }
 
 export interface Settlement {

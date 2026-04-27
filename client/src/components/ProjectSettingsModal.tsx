@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useApp } from "@/contexts/AppContext";
+import { trpc } from "@/lib/trpc";
 import type { TravelProject } from "@/lib/types";
 import { Settings, MapPin, Calendar, Plane } from "lucide-react";
 
@@ -14,10 +14,11 @@ interface Props {
   open: boolean;
   onClose: () => void;
   project: TravelProject;
+  onRefresh?: () => void;
 }
 
-export default function ProjectSettingsModal({ open, onClose, project }: Props) {
-  const { updateProject } = useApp();
+export default function ProjectSettingsModal({ open, onClose, project, onRefresh }: Props) {
+  const updateProjectMutation = trpc.projects.update.useMutation({ onSuccess: () => { onRefresh?.(); onClose(); } });
   const [form, setForm] = useState({
     name: project.name,
     destination: project.destination,
@@ -56,8 +57,7 @@ export default function ProjectSettingsModal({ open, onClose, project }: Props) 
       setErrors(errs);
       return;
     }
-    updateProject(project.id, form);
-    onClose();
+    updateProjectMutation.mutate({ id: project.id, ...form });
   };
 
   return (

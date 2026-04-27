@@ -5,7 +5,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Check, Share2, Copy, ArrowRight, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useApp } from "@/contexts/AppContext";
+
 import type { TravelProject } from "@/lib/types";
 import ShareModal from "@/components/ShareModal";
 import {
@@ -19,7 +19,13 @@ interface Props {
 }
 
 export default function SettlementPanel({ project }: Props) {
-  const { settledTransfers, toggleSettlement, resetSettlements } = useApp();
+  const [settledTransfers, setSettledTransfers] = useState<Record<string, boolean>>({});
+  const toggleSettlement = (key: string) => {
+    setSettledTransfers(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+  const resetSettlements = () => {
+    setSettledTransfers({});
+  };
   const [showShareModal, setShowShareModal] = useState(false);
   const [showFullShare, setShowFullShare] = useState(false);
 
@@ -345,7 +351,7 @@ export default function SettlementPanel({ project }: Props) {
 
       {transfers.length > 0 && (
         <button
-          onClick={() => resetSettlements(project.id)}
+          onClick={() => resetSettlements()}
           className="w-full flex items-center justify-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 py-2 transition-colors"
         >
           <RefreshCw className="w-3 h-3" />

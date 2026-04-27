@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useApp } from "@/contexts/AppContext";
+import { trpc } from "@/lib/trpc";
 import type { Expense, ExpenseCategory, TravelProject } from "@/lib/types";
 import { CATEGORY_CONFIG, getDatesInRange, formatDate, formatDayOfWeek } from "@/lib/types";
 import { CalendarDays, Clock, Plane } from "lucide-react";
@@ -19,6 +19,7 @@ interface Props {
   editExpense?: Expense;
   defaultDate?: string;
   defaultIsPreTrip?: boolean;
+  onSaved?: () => void;
 }
 
 const CATEGORIES = Object.keys(CATEGORY_CONFIG) as ExpenseCategory[];
@@ -30,8 +31,10 @@ export default function AddExpenseModal({
   editExpense,
   defaultDate,
   defaultIsPreTrip = false,
+  onSaved,
 }: Props) {
-  const { addExpense, updateExpense } = useApp();
+  const addExpense = trpc.expenses.add.useMutation({ onSuccess: () => { onSaved?.(); onClose(); } });
+  const updateExpense = trpc.expenses.update.useMutation({ onSuccess: () => { onSaved?.(); onClose(); } });
   const travelDates = getDatesInRange(project.startDate, project.endDate);
 
   const [isPreTrip, setIsPreTrip] = useState(defaultIsPreTrip);
@@ -109,11 +112,10 @@ export default function AddExpenseModal({
     };
 
     if (editExpense) {
-      updateExpense(project.id, editExpense.id, expenseData);
+      updateExpense.mutate({ id: editExpense.id, ...expenseData });
     } else {
-      addExpense(project.id, expenseData);
+      addExpense.mutate({ projectId: project.id, ...expenseData });
     }
-    onClose();
   };
 
   const toggleParticipant = (memberId: string) => {

@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1777262406281,
+      "tag": "0000_grey_ken_ellis",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1777262472522,
+      "tag": "0001_keen_hammerhead",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1777262587759,
+      "tag": "0002_easy_the_hunter",
+      "breakpoints": true
+    }
+  ]
+}

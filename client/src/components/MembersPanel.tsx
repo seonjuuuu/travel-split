@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useApp } from "@/contexts/AppContext";
+import { trpc } from "@/lib/trpc";
 import type { TravelProject } from "@/lib/types";
 import { Plus, Trash2, Crown, UserPlus } from "lucide-react";
 
@@ -13,14 +13,19 @@ interface Props {
   open: boolean;
   onClose: () => void;
   project: TravelProject;
+  onRefresh?: () => void;
 }
 
-export default function MembersPanel({ open, onClose, project }: Props) {
-  const { addMember, removeMember, updateMember } = useApp();
+export default function MembersPanel({ open, onClose, project, onRefresh }: Props) {
+  const addMemberMutation = trpc.members.add.useMutation({ onSuccess: () => onRefresh?.() });
+  const updateMemberMutation = trpc.members.update.useMutation({ onSuccess: () => onRefresh?.() });
+  const deleteMemberMutation = trpc.members.delete.useMutation({ onSuccess: () => onRefresh?.() });
   const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [error, setError] = useState("");
+  const [selectedColor, setSelectedColor] = useState("#6366f1");
+  const [editColor, setEditColor] = useState("#6366f1");
 
   const handleAdd = () => {
     if (!newName.trim()) {
@@ -31,14 +36,14 @@ export default function MembersPanel({ open, onClose, project }: Props) {
       setError("이미 있는 이름입니다");
       return;
     }
-    addMember(project.id, newName.trim());
+    addMemberMutation.mutate({ projectId: project.id, name: newName.trim(), color: selectedColor ?? "#6366f1" });
     setNewName("");
     setError("");
   };
 
   const handleEdit = (id: string) => {
     if (!editName.trim()) return;
-    updateMember(project.id, id, editName.trim());
+    updateMemberMutation.mutate({ id, name: editName.trim(), color: editColor ?? "#6366f1" });
     setEditingId(null);
     setEditName("");
   };
@@ -46,7 +51,7 @@ export default function MembersPanel({ open, onClose, project }: Props) {
   const handleRemove = (id: string) => {
     const member = project.members.find((m) => m.id === id);
     if (member?.isMe) return; // 나는 삭제 불가
-    removeMember(project.id, id);
+    deleteMemberMutation.mutate({ id });
   };
 
   return (
