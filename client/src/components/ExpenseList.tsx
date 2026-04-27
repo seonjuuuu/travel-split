@@ -14,10 +14,11 @@ interface Props {
   project: TravelProject;
   expenses: Expense[];
   selectedDate: string | null;
+  selectedMemberId?: string | null;
   onRefresh?: () => void;
 }
 
-export default function ExpenseList({ project, expenses, selectedDate, onRefresh }: Props) {
+export default function ExpenseList({ project, expenses, selectedDate, selectedMemberId, onRefresh }: Props) {
   const utils = trpc.useUtils();
   const deleteExpenseMutation = trpc.expenses.delete.useMutation({
     onMutate: async (vars) => {
@@ -63,10 +64,16 @@ export default function ExpenseList({ project, expenses, selectedDate, onRefresh
           <span className="text-2xl">🧾</span>
         </div>
         <p className="text-gray-500 font-medium mb-1">
-          {selectedDate ? "이 날의 지출이 없어요" : "아직 지출이 없어요"}
+          {selectedMemberId
+            ? `${project.members.find((m) => m.id === selectedMemberId)?.name ?? "이 멤버"}의 지출이 없어요`
+            : selectedDate
+            ? "이 날의 지출이 없어요"
+            : "아직 지출이 없어요"}
         </p>
         <p className="text-sm text-gray-400">
-          + 버튼을 눌러 지출을 추가해보세요
+          {selectedMemberId
+            ? "다른 멤버를 선택하거나 전체를 눌러보세요"
+            : "+ 버튼을 눌러 지출을 추가해보세요"}
         </p>
       </div>
     );
