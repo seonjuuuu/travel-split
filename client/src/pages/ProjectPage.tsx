@@ -130,7 +130,11 @@ export default function ProjectPage() {
           {/* 뷰 모드 전환 버튼 */}
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs font-medium text-gray-400">
-              {selectedDate ? `📅 ${formatDate(selectedDate)} 선택됨` : "전체 날짜"}
+              {selectedDate === "pre-trip"
+                ? "✈️ 사전 결제 내역"
+                : selectedDate
+                ? `📅 ${formatDate(selectedDate)} 선택됨`
+                : "전체 날짜"}
             </p>
             <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
               <button

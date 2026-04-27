@@ -130,7 +130,9 @@ export function getDatesInRange(start: string, end: string): string[] {
 }
 
 export function formatDate(dateStr: string): string {
+  if (!dateStr || dateStr === "pre-trip") return "사전 결제";
   const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return "날짜 미지정";
   return date.toLocaleDateString("ko-KR", {
     month: "short",
     day: "numeric",
@@ -146,7 +148,9 @@ export function formatDateShort(dateStr: string): string {
 }
 
 export function formatDayOfWeek(dateStr: string): string {
+  if (!dateStr || dateStr === "pre-trip") return "";
   const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return "";
   return date.toLocaleDateString("ko-KR", { weekday: "short" });
 }
 

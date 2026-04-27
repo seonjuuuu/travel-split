@@ -72,7 +72,7 @@ export default function ChartPanel({ project, selectedDate }: Props) {
   // 날짜별 지출 (전체 보기일 때만)
   const dailyData = !selectedDate
     ? Object.entries(
-        project.expenses.reduce<Record<string, number>>((acc, e) => {
+        project.expenses.filter((e) => !e.isPreTrip && e.date).reduce<Record<string, number>>((acc, e) => {
           acc[e.date] = (acc[e.date] || 0) + e.amount;
           return acc;
         }, {})
