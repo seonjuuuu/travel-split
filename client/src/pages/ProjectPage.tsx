@@ -18,6 +18,7 @@ import {
   CalendarDays,
   Grid3X3,
   Clock,
+  Plane,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/contexts/AppContext";
@@ -66,11 +67,13 @@ export default function ProjectPage() {
   }
 
   const travelDates = getDatesInRange(project.startDate, project.endDate);
-  const preTripExpenses = project.expenses.filter((e) => e.date < project.startDate);
+  // isPreTrip 플래그 기반으로 사전 결제 분리 (날짜 무관)
+  const preTripExpenses = project.expenses.filter((e) => e.isPreTrip === true);
+  const tripExpenses = project.expenses.filter((e) => e.isPreTrip !== true);
   const filteredExpenses = selectedDate === "pre-trip"
     ? preTripExpenses
     : selectedDate
-    ? project.expenses.filter((e) => e.date === selectedDate)
+    ? tripExpenses.filter((e) => e.date === selectedDate)
     : project.expenses;
 
   const totalExpense = project.expenses.reduce((s, e) => s + e.amount, 0);
@@ -173,27 +176,25 @@ export default function ProjectPage() {
                 </span>
               </button>
 
-              {/* 사전 결제 버튼 */}
-              {preTripExpenses.length > 0 && (
-                <button
-                  onClick={() => setSelectedDate("pre-trip")}
-                  className={`shrink-0 flex flex-col items-center gap-0.5 px-3 py-2 rounded-2xl transition-all ${
-                    selectedDate === "pre-trip"
-                      ? "bg-amber-500 text-white shadow-sm shadow-amber-200"
-                      : "bg-amber-100 text-amber-700 hover:bg-amber-200"
-                  }`}
-                >
-                  <Clock className="w-3 h-3" />
-                  <span className="text-xs font-bold">사전</span>
-                  <span className="text-[10px] opacity-70">
-                    {preTripExpenses.length}건
-                  </span>
-                </button>
-              )}
+              {/* 사전 결제 버튼 - 항상 표시 */}
+              <button
+                onClick={() => setSelectedDate(selectedDate === "pre-trip" ? null : "pre-trip")}
+                className={`shrink-0 flex flex-col items-center gap-0.5 px-3 py-2 rounded-2xl transition-all ${
+                  selectedDate === "pre-trip"
+                    ? "bg-amber-500 text-white shadow-sm shadow-amber-200"
+                    : "bg-amber-100 text-amber-700 hover:bg-amber-200"
+                }`}
+              >
+                <Plane className="w-3 h-3" />
+                <span className="text-xs font-bold">사전</span>
+                <span className="text-[10px] opacity-70">
+                  {preTripExpenses.length}건
+                </span>
+              </button>
 
               {/* 날짜별 버튼 */}
               {travelDates.map((date, idx) => {
-                const dayExpenses = project.expenses.filter(
+                const dayExpenses = tripExpenses.filter(
                   (e) => e.date === date
                 );
                 const isSelected = selectedDate === date;
@@ -337,7 +338,8 @@ export default function ProjectPage() {
         open={showAddExpense}
         onClose={() => setShowAddExpense(false)}
         project={project}
-        defaultDate={selectedDate || project.startDate}
+        defaultDate={selectedDate && selectedDate !== "pre-trip" ? selectedDate : project.startDate}
+        defaultIsPreTrip={selectedDate === "pre-trip"}
       />
       <MembersPanel
         open={showMembers}

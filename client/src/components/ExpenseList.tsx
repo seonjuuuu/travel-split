@@ -1,10 +1,10 @@
 // 지출 목록 컴포넌트
 // Design: Card-based expense list with category color accents
-// 사전 결제 항목은 별도 섹션으로 구분 표시
+// 사전 결제(isPreTrip=true)는 날짜 무관 별도 섹션으로 표시
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trash2, Edit2, ChevronDown, ChevronUp, Clock } from "lucide-react";
+import { Trash2, Edit2, ChevronDown, ChevronUp, Clock, Plane } from "lucide-react";
 import { useApp } from "@/contexts/AppContext";
 import type { Expense, TravelProject } from "@/lib/types";
 import { CATEGORY_CONFIG, formatAmount, formatDate } from "@/lib/types";
@@ -33,9 +33,9 @@ export default function ExpenseList({ project, expenses, selectedDate }: Props) 
     }
   };
 
-  // 사전 결제 / 여행 중 분리
-  const preTripExpenses = expenses.filter((e) => e.date < project.startDate);
-  const tripExpenses = expenses.filter((e) => e.date >= project.startDate);
+  // isPreTrip 플래그로 분리 (날짜 무관)
+  const preTripExpenses = expenses.filter((e) => e.isPreTrip === true);
+  const tripExpenses = expenses.filter((e) => e.isPreTrip !== true);
 
   if (expenses.length === 0) {
     return (
@@ -53,10 +53,11 @@ export default function ExpenseList({ project, expenses, selectedDate }: Props) 
     );
   }
 
-  // 날짜별 그룹핑 (여행 중 지출)
+  // 여행 중 지출: 날짜별 그룹핑
   const grouped = tripExpenses.reduce<Record<string, Expense[]>>((acc, e) => {
-    if (!acc[e.date]) acc[e.date] = [];
-    acc[e.date].push(e);
+    const key = e.date || "날짜 없음";
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(e);
     return acc;
   }, {});
   const sortedDates = Object.keys(grouped).sort((a, b) => a.localeCompare(b));
@@ -65,7 +66,7 @@ export default function ExpenseList({ project, expenses, selectedDate }: Props) 
     const catConfig = CATEGORY_CONFIG[expense.category];
     const payer = project.members.find((m) => m.id === expense.payerId);
     const isExpanded = expandedId === expense.id;
-    const isPreTrip = expense.date < project.startDate;
+    const isPreTripCard = expense.isPreTrip === true;
     const participants =
       expense.participantIds.length > 0
         ? expense.participantIds
@@ -81,7 +82,7 @@ export default function ExpenseList({ project, expenses, selectedDate }: Props) 
         exit={{ opacity: 0, x: -20 }}
         transition={{ delay: idx * 0.03 }}
         className={`bg-white rounded-2xl border overflow-hidden hover:shadow-sm transition-shadow ${
-          isPreTrip ? "border-amber-200" : "border-gray-100"
+          isPreTripCard ? "border-amber-200" : "border-gray-100"
         }`}
       >
         <div
@@ -98,7 +99,7 @@ export default function ExpenseList({ project, expenses, selectedDate }: Props) 
 
           {/* 내용 */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+            <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
               <span className="font-semibold text-gray-900 text-sm truncate">
                 {expense.title}
               </span>
@@ -111,12 +112,6 @@ export default function ExpenseList({ project, expenses, selectedDate }: Props) 
               >
                 {expense.category}
               </span>
-              {isPreTrip && (
-                <span className="flex items-center gap-0.5 text-xs px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700 shrink-0">
-                  <Clock className="w-2.5 h-2.5" />
-                  사전
-                </span>
-              )}
             </div>
             <div className="flex items-center gap-2 text-xs text-gray-400">
               {payer && (
@@ -132,12 +127,6 @@ export default function ExpenseList({ project, expenses, selectedDate }: Props) 
               )}
               <span className="text-gray-200">·</span>
               <span>{participants.length}명 분담</span>
-              {isPreTrip && (
-                <>
-                  <span className="text-gray-200">·</span>
-                  <span className="text-amber-500">{formatDate(expense.date)}</span>
-                </>
-              )}
             </div>
           </div>
 
@@ -187,11 +176,7 @@ export default function ExpenseList({ project, expenses, selectedDate }: Props) 
                           </div>
                           {m.name}
                           <span className="text-gray-400 ml-0.5">
-                            (
-                            {formatAmount(
-                              Math.round(expense.amount / participants.length)
-                            )}
-                            )
+                            ({formatAmount(Math.round(expense.amount / participants.length))})
                           </span>
                         </div>
                       ) : null
@@ -237,7 +222,7 @@ export default function ExpenseList({ project, expenses, selectedDate }: Props) 
   return (
     <>
       <div className="space-y-6">
-        {/* 사전 결제 섹션 */}
+        {/* ✈️ 사전 결제 섹션 - 날짜 무관 독립 분류 */}
         {preTripExpenses.length > 0 && (
           <div>
             <button
@@ -245,16 +230,16 @@ export default function ExpenseList({ project, expenses, selectedDate }: Props) 
               className="flex items-center justify-between w-full mb-3 group"
             >
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5 bg-amber-100 text-amber-700 px-3 py-1 rounded-full">
-                  <Clock className="w-3.5 h-3.5" />
+                <div className="flex items-center gap-1.5 bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full">
+                  <Plane className="w-3.5 h-3.5" />
                   <span className="text-xs font-bold">사전 결제</span>
-                  <span className="text-xs bg-amber-200 text-amber-800 rounded-full px-1.5 py-0.5 font-bold">
+                  <span className="text-xs bg-amber-200 text-amber-800 rounded-full px-1.5 py-0.5 font-bold ml-0.5">
                     {preTripExpenses.length}
                   </span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-amber-600">
+                <span className="text-xs font-bold text-amber-600">
                   {formatAmount(preTripExpenses.reduce((s, e) => s + e.amount, 0))}
                 </span>
                 {showPreTrip ? (
@@ -276,11 +261,9 @@ export default function ExpenseList({ project, expenses, selectedDate }: Props) 
                 >
                   <div className="space-y-2 pl-1 border-l-2 border-amber-200 ml-1">
                     <AnimatePresence>
-                      {preTripExpenses
-                        .sort((a, b) => a.date.localeCompare(b.date))
-                        .map((expense, idx) =>
-                          renderExpenseCard(expense, idx)
-                        )}
+                      {preTripExpenses.map((expense, idx) =>
+                        renderExpenseCard(expense, idx)
+                      )}
                     </AnimatePresence>
                   </div>
                 </motion.div>
@@ -289,7 +272,7 @@ export default function ExpenseList({ project, expenses, selectedDate }: Props) 
           </div>
         )}
 
-        {/* 여행 중 지출 */}
+        {/* 📅 여행 중 지출 - 날짜별 그룹 */}
         {sortedDates.map((date) => {
           const dayExpenses = grouped[date];
           const dayTotal = dayExpenses.reduce((s, e) => s + e.amount, 0);
@@ -302,7 +285,7 @@ export default function ExpenseList({ project, expenses, selectedDate }: Props) 
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-indigo-400 rounded-full" />
                     <span className="text-sm font-semibold text-gray-700">
-                      {formatDate(date)}
+                      {date !== "날짜 없음" ? formatDate(date) : "날짜 미지정"}
                     </span>
                   </div>
                   <span className="text-xs font-medium text-gray-400">
@@ -325,9 +308,7 @@ export default function ExpenseList({ project, expenses, selectedDate }: Props) 
         {/* 여행 중 지출이 없고 사전 결제만 있는 경우 */}
         {tripExpenses.length === 0 && preTripExpenses.length > 0 && (
           <div className="flex flex-col items-center justify-center py-8 text-center">
-            <p className="text-sm text-gray-400">
-              여행 중 지출이 없어요
-            </p>
+            <p className="text-sm text-gray-400">여행 중 지출이 없어요</p>
             <p className="text-xs text-gray-300 mt-1">
               + 버튼을 눌러 여행 중 지출을 추가해보세요
             </p>
@@ -342,7 +323,7 @@ export default function ExpenseList({ project, expenses, selectedDate }: Props) 
           onClose={() => setEditingExpense(null)}
           project={project}
           editExpense={editingExpense}
-          defaultDate={editingExpense.date}
+          defaultIsPreTrip={editingExpense.isPreTrip === true}
         />
       )}
     </>

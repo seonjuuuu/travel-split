@@ -66,9 +66,9 @@ export interface Expense {
   category: ExpenseCategory;
   payerId: string; // who paid
   participantIds: string[]; // who shares the cost
-  date: string; // YYYY-MM-DD
+  date: string; // YYYY-MM-DD (사전 결제는 빈 문자열 허용)
   note?: string;
-  isPreTrip?: boolean; // 여행 전 사전 결제 여부
+  isPreTrip?: boolean; // 여행 전 사전 결제 여부 (날짜 무관)
 }
 
 export interface TravelProject {
@@ -109,8 +109,10 @@ export const MEMBER_COLORS = [
   "#14b8a6", // teal
 ];
 
-// 사전 결제 여부 판별
+// 사전 결제 여부 판별 (isPreTrip 플래그 우선, 없으면 날짜로 판별)
 export function isPreTripExpense(expense: Expense, projectStartDate: string): boolean {
+  if (expense.isPreTrip === true) return true;
+  if (expense.isPreTrip === false) return false;
   return expense.date < projectStartDate;
 }
 
