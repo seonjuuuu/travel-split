@@ -85,7 +85,6 @@ export default function ExpenseList({ project, expenses, selectedDate, onRefresh
         className={`bg-white rounded-2xl border overflow-hidden hover:shadow-sm transition-shadow ${
           isPreTripCard ? "border-amber-200" : "border-gray-100"
         }`}
-        style={{ borderLeftWidth: 4, borderLeftColor: payer?.color ?? (isPreTripCard ? "#f59e0b" : "#e5e7eb") }}
       >
         <div
           className="flex items-center gap-3 p-4 cursor-pointer"

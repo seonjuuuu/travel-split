@@ -138,8 +138,7 @@ export default function SettlementPanel({ project }: Props) {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: idx * 0.05 }}
-                className="px-5 py-4 border-l-4"
-                style={{ borderLeftColor: member.color }}
+                className="px-5 py-4"
               >
                 <div className="flex items-center gap-3">
                   {/* 아바타 */}
