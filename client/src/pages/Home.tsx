@@ -631,14 +631,23 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="py-10 px-4 sm:px-6 border-t border-gray-100 bg-gray-50">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <TripSplitLogo size={24} />
-            <span className="font-bold text-gray-700 text-sm">트립스플릿</span>
+        <div className="max-w-6xl mx-auto flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2.5">
+              <TripSplitLogo size={24} />
+              <span className="font-bold text-gray-700 text-sm">트립스플릿</span>
+            </div>
+            <p className="text-gray-400 text-sm">
+              © 2025 트립스플릿 · 친구와 함께하는 스마트 여행 정산
+            </p>
           </div>
-          <p className="text-gray-400 text-sm">
-            © 2025 트립스플릿 · 친구와 함께하는 스마트 여행 정산
-          </p>
+          <div className="border-t border-gray-200 pt-4 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-6 text-xs text-gray-400">
+            <span>달빛워크</span>
+            <span className="hidden sm:inline text-gray-200">·</span>
+            <span>사업자등록번호 350-14-02666</span>
+            <span className="hidden sm:inline text-gray-200">·</span>
+            <span>광고문의 | <a href="mailto:dalbit.work@gmail.com" className="hover:text-indigo-600 transition-colors">dalbit.work@gmail.com</a></span>
+          </div>
         </div>
       </footer>
     </div>
