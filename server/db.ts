@@ -145,6 +145,27 @@ export async function deleteProject(id: string, userId: number) {
     .where(and(eq(travelProjects.id, id), eq(travelProjects.userId, userId)));
 }
 
+// ── 공유 토큰 ────────────────────────────────────────────────────
+export async function setProjectShareToken(id: string, userId: number, token: string | null) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db
+    .update(travelProjects)
+    .set({ shareToken: token })
+    .where(and(eq(travelProjects.id, id), eq(travelProjects.userId, userId)));
+}
+
+export async function getProjectByShareToken(token: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(travelProjects)
+    .where(eq(travelProjects.shareToken, token))
+    .limit(1);
+  return rows[0];
+}
+
 // ── 멤버 ─────────────────────────────────────────────────────────
 export async function getMembersByProjectId(projectId: string) {
   const db = await getDb();

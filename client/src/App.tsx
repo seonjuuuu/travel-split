@@ -9,12 +9,14 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import ProjectPage from "./pages/ProjectPage";
+import SharedProjectPage from "./pages/SharedProjectPage";
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/project/:id" component={ProjectPage} />
+      <Route path="/share/:token" component={SharedProjectPage} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

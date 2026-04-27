@@ -43,6 +43,7 @@ export const travelProjects = mysqlTable("travel_projects", {
   startDate: varchar("startDate", { length: 10 }).notNull(), // YYYY-MM-DD
   endDate: varchar("endDate", { length: 10 }).notNull(),   // YYYY-MM-DD
   myName: varchar("myName", { length: 50 }).notNull().default("나"),
+  shareToken: varchar("shareToken", { length: 32 }), // 공유 링크 토큰 (null이면 비활성)
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

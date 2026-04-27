@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Plus, Users, BarChart3, Receipt, Calculator,
   Settings, MapPin, CalendarDays, Grid3X3, Plane,
+  Share2, Copy, Check, X, Link,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
@@ -16,6 +17,7 @@ import SettlementPanel from "@/components/SettlementPanel";
 import ChartPanel from "@/components/ChartPanel";
 import ProjectSettingsModal from "@/components/ProjectSettingsModal";
 import CalendarView from "@/components/CalendarView";
+import { toast } from "sonner";
 
 type Tab = "expenses" | "chart" | "settlement";
 type DateViewMode = "pills" | "calendar";
@@ -29,11 +31,55 @@ export default function ProjectPage() {
   const [showMembers, setShowMembers] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [dateViewMode, setDateViewMode] = useState<DateViewMode>("pills");
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareToken, setShareToken] = useState<string | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
 
   const { data: project, isLoading, refetch } = trpc.projects.get.useQuery(
     { id: params.id ?? "" },
     { enabled: !!params.id }
   );
+
+  const utils = trpc.useUtils();
+
+  const enableShareMutation = trpc.projects.enableShare.useMutation({
+    onSuccess: (data) => {
+      setShareToken(data.token);
+      setShowShareModal(true);
+      utils.projects.get.invalidate({ id: params.id ?? "" });
+    },
+    onError: () => toast.error("공유 링크 생성에 실패했습니다."),
+  });
+
+  const disableShareMutation = trpc.projects.disableShare.useMutation({
+    onSuccess: () => {
+      setShareToken(null);
+      setShowShareModal(false);
+      toast.success("공유 링크가 비활성화되었습니다.");
+      utils.projects.get.invalidate({ id: params.id ?? "" });
+    },
+    onError: () => toast.error("공유 링크 비활성화에 실패했습니다."),
+  });
+
+  const handleShare = () => {
+    if (!project) return;
+    if (project.shareToken) {
+      setShareToken(project.shareToken);
+      setShowShareModal(true);
+    } else {
+      enableShareMutation.mutate({ id: project.id });
+    }
+  };
+
+  const handleCopyShareLink = () => {
+    const token = shareToken || project?.shareToken;
+    if (!token) return;
+    const url = `${window.location.origin}/share/${token}`;
+    navigator.clipboard.writeText(url);
+    setShareCopied(true);
+    setTimeout(() => setShareCopied(false), 2000);
+    toast.success("링크가 복사되었습니다!");
+  };
 
   if (isLoading) {
     return (
@@ -70,6 +116,9 @@ export default function ProjectPage() {
     { id: "settlement", label: "정산", icon: <Calculator className="w-4 h-4" /> },
   ];
 
+  const currentShareToken = shareToken || project.shareToken;
+  const shareUrl = currentShareToken ? `${window.location.origin}/share/${currentShareToken}` : "";
+
   return (
     <div className="min-h-screen bg-[#FAFAF8]">
       <header className="bg-white border-b border-gray-100 sticky top-0 z-50">
@@ -87,6 +136,15 @@ export default function ProjectPage() {
           <div className="flex items-center gap-1.5">
             <button onClick={() => setShowMembers(true)} className="flex items-center gap-1 px-3 h-8 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors text-xs font-medium text-gray-600">
               <Users className="w-3.5 h-3.5" />{project.members.length}명
+            </button>
+            {/* 공유 버튼 */}
+            <button
+              onClick={handleShare}
+              disabled={enableShareMutation.isPending}
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${project.shareToken ? "bg-indigo-100 text-indigo-600 hover:bg-indigo-200" : "hover:bg-gray-100 text-gray-500"}`}
+              title="친구에게 공유"
+            >
+              <Share2 className="w-4 h-4" />
             </button>
             <button onClick={() => setShowSettings(true)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors">
               <Settings className="w-4 h-4 text-gray-500" />
@@ -187,6 +245,82 @@ export default function ProjectPage() {
             className="w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg shadow-indigo-300 flex items-center justify-center transition-colors">
             <Plus className="w-6 h-6" />
           </motion.button>
+        </div>
+      )}
+
+      {/* 공유 링크 모달 */}
+      {showShareModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowShareModal(false)}>
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
+            transition={{ duration: 0.2 }}
+            className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 모달 헤더 */}
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 bg-indigo-100 rounded-xl flex items-center justify-center">
+                  <Share2 className="w-4.5 h-4.5 text-indigo-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-base">공유 링크</h3>
+                  <p className="text-xs text-gray-400">로그인 없이 볼 수 있어요</p>
+                </div>
+              </div>
+              <button onClick={() => setShowShareModal(false)} className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors">
+                <X className="w-4 h-4 text-gray-400" />
+              </button>
+            </div>
+
+            {/* 링크 표시 */}
+            <div className="bg-gray-50 rounded-2xl p-3 mb-4 flex items-center gap-2">
+              <Link className="w-4 h-4 text-gray-400 shrink-0" />
+              <span className="text-xs text-gray-600 flex-1 truncate font-mono">{shareUrl}</span>
+            </div>
+
+            {/* 안내 문구 */}
+            <p className="text-xs text-gray-500 mb-5 leading-relaxed">
+              이 링크를 받은 친구는 <strong>로그인 없이</strong> 지출 내역과 정산 결과를 볼 수 있습니다. 수정은 불가합니다.
+            </p>
+
+            {/* 버튼들 */}
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handleCopyShareLink}
+                className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl py-3 font-semibold text-sm transition-colors"
+              >
+                {shareCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                {shareCopied ? "복사 완료!" : "링크 복사"}
+              </button>
+
+              {/* 카카오톡 공유 */}
+              <button
+                onClick={() => {
+                  const text = `[${project.name}] 여행 정산 내역을 공유합니다.\n\n${shareUrl}`;
+                  window.open(`https://story.kakao.com/share?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(text)}`, "_blank");
+                }}
+                className="w-full flex items-center justify-center gap-2 bg-[#FEE500] hover:bg-[#F0D800] text-[#3C1E1E] rounded-2xl py-3 font-semibold text-sm transition-colors"
+              >
+                카카오톡으로 공유
+              </button>
+
+              {/* 링크 비활성화 */}
+              <button
+                onClick={() => {
+                  if (confirm("공유 링크를 비활성화하면 친구가 더 이상 볼 수 없습니다. 계속하시겠어요?")) {
+                    disableShareMutation.mutate({ id: project.id });
+                  }
+                }}
+                disabled={disableShareMutation.isPending}
+                className="w-full flex items-center justify-center gap-2 text-red-400 hover:text-red-500 text-xs py-2 transition-colors"
+              >
+                {disableShareMutation.isPending ? "처리 중..." : "링크 비활성화"}
+              </button>
+            </div>
+          </motion.div>
         </div>
       )}
 

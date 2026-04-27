@@ -14,7 +14,9 @@ import {
   getExpensesByProjectId,
   getMembersByProjectId,
   getProjectById,
+  getProjectByShareToken,
   getProjectsByUserId,
+  setProjectShareToken,
   updateExpense,
   updateMember,
   updateProject,
@@ -116,6 +118,42 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         await deleteProject(input.id, ctx.user.id);
         return { success: true };
+      }),
+
+    // 공유 링크 토큰 생성 (ON)
+    enableShare: protectedProcedure
+      .input(z.object({ id: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        // 16바이트 랜덤 토큰 생성
+        const token = nanoid(24);
+        await setProjectShareToken(input.id, ctx.user.id, token);
+        return { token };
+      }),
+
+    // 공유 링크 토큰 삭제 (OFF)
+    disableShare: protectedProcedure
+      .input(z.object({ id: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        await setProjectShareToken(input.id, ctx.user.id, null);
+        return { success: true };
+      }),
+
+    // 공유 링크로 여행 조회 (로그인 불필요)
+    getByToken: publicProcedure
+      .input(z.object({ token: z.string() }))
+      .query(async ({ input }) => {
+        const project = await getProjectByShareToken(input.token);
+        if (!project) return null;
+        const members = await getMembersByProjectId(project.id);
+        const expenseRows = await getExpensesByProjectId(project.id);
+        return {
+          ...project,
+          members,
+          expenses: expenseRows.map((e) => ({
+            ...e,
+            participantIds: JSON.parse(e.participantIds || "[]") as string[],
+          })),
+        };
       }),
   }),
 
