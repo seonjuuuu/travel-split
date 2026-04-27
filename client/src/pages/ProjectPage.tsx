@@ -266,7 +266,8 @@ export default function ProjectPage() {
               </button>
               {/* 멤버별 버튼 */}
               {project.members.map((member) => {
-                const memberExpenses = project.expenses.filter((e) => e.payerId === member.id);
+                // 공동경비 제외 - 정산 대상 결제액만 표시
+                const memberExpenses = project.expenses.filter((e) => !Boolean(e.isSharedCost) && e.payerId === member.id);
                 const memberTotal = memberExpenses.reduce((s, e) => s + e.amount, 0);
                 const isSelected = selectedMemberId === member.id;
                 return (
