@@ -34,6 +34,7 @@ export default function ProjectPage() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareToken, setShareToken] = useState<string | null>(null);
   const [shareCopied, setShareCopied] = useState(false);
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
 
   const { data: project, isLoading, refetch } = trpc.projects.get.useQuery(
     { id: params.id ?? "" },
@@ -103,11 +104,28 @@ export default function ProjectPage() {
   const travelDates = getDatesInRange(project.startDate, project.endDate);
   const preTripExpenses = project.expenses.filter((e) => e.isPreTrip === true);
   const tripExpenses = project.expenses.filter((e) => e.isPreTrip !== true);
-  const filteredExpenses = selectedDate === "pre-trip"
+  // 날짜 필터 적용
+  const dateFilteredExpenses = selectedDate === "pre-trip"
     ? preTripExpenses
     : selectedDate
     ? tripExpenses.filter((e) => e.date === selectedDate)
     : project.expenses;
+
+  // 멤버 필터 추가 적용 (결제자이거나 참여자인 경우)
+  const filteredExpenses = selectedMemberId
+    ? dateFilteredExpenses.filter(
+        (e) =>
+          e.payerId === selectedMemberId ||
+          (Array.isArray(e.participantIds) && e.participantIds.includes(selectedMemberId))
+      )
+    : dateFilteredExpenses;
+
+  // 선택된 멤버의 총 지출 (결제 기준)
+  const selectedMemberTotal = selectedMemberId
+    ? project.expenses
+        .filter((e) => e.payerId === selectedMemberId)
+        .reduce((s, e) => s + e.amount, 0)
+    : null;
   const totalExpense = project.expenses.reduce((s, e) => s + e.amount, 0);
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
@@ -230,6 +248,83 @@ export default function ProjectPage() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 pb-24">
+        {/* 지출 탭 - 멤버 필터 */}
+        {activeTab === "expenses" && (
+          <div className="mb-4">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+              <span className="text-xs text-gray-400 shrink-0 font-medium">멤버</span>
+              {/* 전체 버튼 */}
+              <button
+                onClick={() => setSelectedMemberId(null)}
+                className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  selectedMemberId === null
+                    ? "bg-gray-800 text-white shadow-sm"
+                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                }`}
+              >
+                전체
+              </button>
+              {/* 멤버별 버튼 */}
+              {project.members.map((member) => {
+                const memberExpenses = project.expenses.filter((e) => e.payerId === member.id);
+                const memberTotal = memberExpenses.reduce((s, e) => s + e.amount, 0);
+                const isSelected = selectedMemberId === member.id;
+                return (
+                  <button
+                    key={member.id}
+                    onClick={() => setSelectedMemberId(isSelected ? null : member.id)}
+                    className={`shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all border-2 ${
+                      isSelected
+                        ? "text-white shadow-sm border-transparent"
+                        : "bg-white text-gray-600 hover:bg-gray-50 border-gray-100"
+                    }`}
+                    style={isSelected ? { backgroundColor: member.color, borderColor: member.color } : {}}
+                  >
+                    {/* 아바타 */}
+                    <span
+                      className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0`}
+                      style={{ backgroundColor: isSelected ? "rgba(255,255,255,0.3)" : member.color }}
+                    >
+                      {member.name[0]}
+                    </span>
+                    <span>{member.name}</span>
+                    {memberTotal > 0 && (
+                      <span className={`${isSelected ? "opacity-80" : "text-gray-400"}`}>
+                        {memberTotal.toLocaleString()}원
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            {/* 선택된 멤버 요약 */}
+            {selectedMemberId && (() => {
+              const member = project.members.find((m) => m.id === selectedMemberId);
+              if (!member) return null;
+              const paid = project.expenses.filter((e) => e.payerId === selectedMemberId).reduce((s, e) => s + e.amount, 0);
+              const participated = project.expenses.filter((e) => Array.isArray(e.participantIds) && e.participantIds.includes(selectedMemberId)).reduce((s, e) => s + e.amount / (e.participantIds.length || 1), 0);
+              return (
+                <div className="mt-3 p-3 rounded-2xl flex items-center gap-4" style={{ backgroundColor: member.color + "18" }}>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold" style={{ backgroundColor: member.color }}>
+                    {member.name[0]}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold" style={{ color: member.color }}>{member.name}</p>
+                    <p className="text-xs text-gray-500">{filteredExpenses.length}건 표시 중</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-gray-400">결제한 금액</p>
+                    <p className="text-sm font-bold text-gray-900">{paid.toLocaleString()}원</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-gray-400">부담 금액</p>
+                    <p className="text-sm font-bold text-gray-900">{Math.round(participated).toLocaleString()}원</p>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
         <AnimatePresence mode="wait">
           <motion.div key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.15 }}>
             {activeTab === "expenses" && <ExpenseList project={project} expenses={filteredExpenses} selectedDate={selectedDate} onRefresh={refetch} />}
