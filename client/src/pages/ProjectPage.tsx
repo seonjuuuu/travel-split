@@ -301,17 +301,19 @@ export default function ProjectPage() {
             {selectedMemberId && (() => {
               const member = project.members.find((m) => m.id === selectedMemberId);
               if (!member) return null;
-              // 공동경비 포함 전체 결제 금액
+              // 정산 대상 결제 금액 (공동경비 제외)
               const paid = project.expenses
-                .filter((e) => e.payerId === selectedMemberId)
+                .filter((e) => !Boolean(e.isSharedCost) && e.payerId === selectedMemberId)
                 .reduce((s, e) => s + e.amount, 0);
               // 정산 대상에서만 부담 계산 (공동경비 제외)
               const participated = project.expenses
                 .filter((e) => !Boolean(e.isSharedCost) && Array.isArray(e.participantIds) && e.participantIds.includes(selectedMemberId))
                 .reduce((s, e) => s + e.amount / (e.participantIds.length || 1), 0);
+              // 공동경비는 전체 멤버 수로 균등 분배
+              const memberCount = project.members.length || 1;
               const sharedCostPaid = project.expenses
-                .filter((e) => Boolean(e.isSharedCost) && e.payerId === selectedMemberId)
-                .reduce((s, e) => s + e.amount, 0);
+                .filter((e) => Boolean(e.isSharedCost))
+                .reduce((s, e) => s + e.amount / memberCount, 0);
               return (
                 <div className="mt-3 p-3 rounded-2xl flex items-center gap-4" style={{ backgroundColor: member.color + "18" }}>
                   <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold" style={{ backgroundColor: member.color }}>
@@ -324,14 +326,17 @@ export default function ProjectPage() {
                   <div className="text-right">
                     <p className="text-xs text-gray-400">결제한 금액</p>
                     <p className="text-sm font-bold text-gray-900">{paid.toLocaleString()}원</p>
-                    {sharedCostPaid > 0 && (
-                      <p className="text-[10px] text-emerald-600">공동경비 {sharedCostPaid.toLocaleString()}원 포함</p>
-                    )}
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-gray-400">부담 금액</p>
                     <p className="text-sm font-bold text-gray-900">{Math.round(participated).toLocaleString()}원</p>
                   </div>
+                  {sharedCostPaid > 0 && (
+                    <div className="text-right">
+                      <p className="text-xs text-gray-400">공동경비</p>
+                      <p className="text-sm font-bold text-emerald-600">{Math.round(sharedCostPaid).toLocaleString()}원</p>
+                    </div>
+                  )}
                 </div>
               );
             })()}

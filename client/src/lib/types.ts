@@ -207,15 +207,9 @@ export function calculateSettlements(
   expenses.forEach((expense) => {
     // 공동경비는 정산 계산에서 제외 - 하지만 멤버별 지출 통계에는 포함
     if (Boolean(expense.isSharedCost)) {
-      // 공동경비: 결제자가 있으면 해당 멤버의 sharedCostPaid에 직접 추가
-      // 결제자가 없으면 모든 멤버에 균등 분배
-      if (expense.payerId) {
-        const sharedPayer = results.find((r) => r.memberId === expense.payerId);
-        if (sharedPayer) sharedPayer.sharedCostPaid += expense.amount;
-      } else {
-        const share = expense.amount / members.length;
-        results.forEach((r) => { r.sharedCostPaid += share; });
-      }
+      // 공동경비: 항상 전체 멤버 수로 균등 분배 (결제자 상관없이 모두가 함께 낸 돈)
+      const share = expense.amount / members.length;
+      results.forEach((r) => { r.sharedCostPaid += share; });
       return;
     }
 

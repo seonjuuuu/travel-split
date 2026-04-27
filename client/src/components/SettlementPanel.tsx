@@ -177,11 +177,12 @@ export default function SettlementPanel({ project }: Props) {
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-gray-400 flex-wrap">
-                      <span>결제 {formatAmount(result.totalPaid + result.sharedCostPaid)}</span>
+                      <span>결제 {formatAmount(result.totalPaid)}</span>
                       <span className="text-gray-200">·</span>
                       <span>부담 {formatAmount(Math.round(result.totalShare))}</span>
                       {result.sharedCostPaid > 0 && (
-                        <span className="text-emerald-600 font-medium">(공동경비 {formatAmount(Math.round(result.sharedCostPaid))} 포함)</span>
+                        <><span className="text-gray-200">·</span>
+                        <span className="text-emerald-600 font-medium">공동경비 {formatAmount(Math.round(result.sharedCostPaid))}</span></>
                       )}
                     </div>
                     {/* 프로그레스 바 */}
