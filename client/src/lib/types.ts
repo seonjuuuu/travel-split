@@ -141,8 +141,8 @@ export function getNextMemberColor(usedColors: string[]): string {
 
 // 사전 결제 여부 판별 (isPreTrip 플래그 우선, 없으면 날짜로 판별)
 export function isPreTripExpense(expense: Expense, projectStartDate: string): boolean {
-  if (expense.isPreTrip === true) return true;
-  if (expense.isPreTrip === false) return false;
+  if (Boolean(expense.isPreTrip) === true) return true;
+  if (Boolean(expense.isPreTrip) === false) return false;
   return expense.date < projectStartDate;
 }
 

@@ -102,8 +102,8 @@ export default function ProjectPage() {
   }
 
   const travelDates = getDatesInRange(project.startDate, project.endDate);
-  const preTripExpenses = project.expenses.filter((e) => e.isPreTrip === true);
-  const tripExpenses = project.expenses.filter((e) => e.isPreTrip !== true);
+  const preTripExpenses = project.expenses.filter((e) => Boolean(e.isPreTrip) === true);
+  const tripExpenses = project.expenses.filter((e) => Boolean(e.isPreTrip) !== true);
   // 날짜 필터 적용
   const dateFilteredExpenses = selectedDate === "pre-trip"
     ? preTripExpenses

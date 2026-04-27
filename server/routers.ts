@@ -56,6 +56,7 @@ export const appRouter = router({
           expenses: expenseRows.map((e) => ({
             ...e,
             participantIds: JSON.parse(e.participantIds || "[]") as string[],
+            isPreTrip: Boolean(e.isPreTrip),
           })),
         };
       }),
@@ -152,6 +153,7 @@ export const appRouter = router({
           expenses: expenseRows.map((e) => ({
             ...e,
             participantIds: JSON.parse(e.participantIds || "[]") as string[],
+            isPreTrip: Boolean(e.isPreTrip),
           })),
         };
       }),

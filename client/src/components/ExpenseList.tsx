@@ -54,8 +54,8 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
   };
 
   // isPreTrip 플래그로 분리 (날짜 무관)
-  const preTripExpenses = expenses.filter((e) => e.isPreTrip === true);
-  const tripExpenses = expenses.filter((e) => e.isPreTrip !== true);
+  const preTripExpenses = expenses.filter((e) => Boolean(e.isPreTrip) === true);
+  const tripExpenses = expenses.filter((e) => Boolean(e.isPreTrip) !== true);
 
   if (expenses.length === 0) {
     return (
@@ -92,7 +92,7 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
     const catConfig = CATEGORY_CONFIG[expense.category];
     const payer = project.members.find((m) => m.id === expense.payerId);
     const isExpanded = expandedId === expense.id;
-    const isPreTripCard = expense.isPreTrip === true;
+    const isPreTripCard = Boolean(expense.isPreTrip) === true;
     const participants =
       expense.participantIds.length > 0
         ? expense.participantIds
@@ -350,7 +350,7 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
           onClose={() => setEditingExpense(null)}
           project={project}
           editExpense={editingExpense}
-          defaultIsPreTrip={editingExpense.isPreTrip === true}
+          defaultIsPreTrip={Boolean(editingExpense.isPreTrip) === true}
           onSaved={() => {
             utils.projects.get.invalidate({ id: project.id });
             onRefresh?.();

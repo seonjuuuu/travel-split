@@ -59,7 +59,7 @@ export default function AddExpenseModal({
 
   useEffect(() => {
     if (editExpense) {
-      const preTrip = editExpense.isPreTrip === true;
+      const preTrip = Boolean(editExpense.isPreTrip) === true;
       setIsPreTrip(preTrip);
       setForm({
         title: editExpense.title,
