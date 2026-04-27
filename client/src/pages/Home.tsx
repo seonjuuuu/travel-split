@@ -1,3 +1,6 @@
+// 트립스플릿 - 홈 페이지 (랜딩 + 프로젝트 목록)
+// Design: Bold Modern + Travel Vibes
+// Colors: Indigo primary (#4F46E5), warm off-white bg, gradient accents
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
@@ -5,6 +8,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
   Calendar,
+  ChevronRight,
   LogIn,
   LogOut,
   MapPin,
@@ -12,15 +16,17 @@ import {
   Plus,
   Trash2,
   Users,
+  BarChart3,
+  Share2,
+  Wallet,
+  CheckCircle2,
+  Sparkles,
+  Shield,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import CreateProjectModal from "@/components/CreateProjectModal";
-
-function formatAmount(amount: number) {
-  return amount.toLocaleString("ko-KR") + "원";
-}
 
 export default function Home() {
   const [, navigate] = useLocation();
@@ -28,13 +34,11 @@ export default function Home() {
   const [showCreate, setShowCreate] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
-  // OAuth 오류 파라미터 감지
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const authError = params.get("auth_error");
     if (authError) {
       toast.error("로그인 오류: " + authError);
-      // URL에서 파라미터 제거
       const url = new URL(window.location.href);
       url.searchParams.delete("auth_error");
       window.history.replaceState({}, "", url.toString());
@@ -64,256 +68,466 @@ export default function Home() {
     }
   };
 
+  // 로그인 후 대시보드 뷰
+  if (isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#FAFAF8]">
+        {/* Header */}
+        <header className="bg-white border-b border-gray-100 sticky top-0 z-50">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+                <Plane className="w-4 h-4 text-white" />
+              </div>
+              <span className="font-bold text-gray-900 text-lg tracking-tight">트립스플릿</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="hidden sm:flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold">
+                  {user?.name?.[0] ?? "U"}
+                </div>
+                <span className="text-sm text-gray-600">{user?.name}</span>
+              </div>
+              <button
+                onClick={() => setShowCreate(true)}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-4 h-9 text-sm font-medium flex items-center gap-1.5 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                새 여행
+              </button>
+              <button
+                onClick={logout}
+                className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors"
+                title="로그아웃"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
+          {loading && (
+            <div className="flex items-center justify-center py-32">
+              <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+
+          {!loading && (
+            <>
+              {projects.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-24 text-center">
+                  <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mb-6">
+                    <Plane className="w-10 h-10 text-indigo-400" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-3">첫 여행을 시작해볼까요?</h2>
+                  <p className="text-gray-500 mb-8 max-w-sm leading-relaxed">
+                    여행 프로젝트를 만들고 친구들과 함께 지출을 기록하고 정산해보세요.
+                  </p>
+                  <button
+                    onClick={() => setShowCreate(true)}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-8 h-11 text-base font-medium flex items-center gap-2 transition-colors"
+                  >
+                    <Plus className="w-5 h-5" />
+                    새 여행 만들기
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between mb-5">
+                    <h2 className="text-lg font-bold text-gray-900">내 여행 ({projects.length})</h2>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <AnimatePresence>
+                      {projects.map((project, idx) => {
+                        const startDate = new Date(project.startDate);
+                        const endDate = new Date(project.endDate);
+                        const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                        return (
+                          <motion.div
+                            key={project.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={{ delay: idx * 0.05 }}
+                            onClick={() => handleOpenProject(project.id)}
+                            className="bg-white rounded-2xl border border-gray-100 p-5 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group relative"
+                          >
+                            <button
+                              onClick={(e) => handleDelete(project.id, e)}
+                              className={`absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center transition-all ${
+                                deleteConfirm === project.id
+                                  ? "bg-red-500 text-white"
+                                  : "bg-gray-100 text-gray-400 opacity-0 group-hover:opacity-100"
+                              }`}
+                              title={deleteConfirm === project.id ? "한 번 더 클릭하면 삭제됩니다" : "삭제"}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                            <div className="flex items-center gap-1.5 mb-3">
+                              <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center">
+                                <MapPin className="w-3.5 h-3.5 text-indigo-600" />
+                              </div>
+                              <span className="text-xs font-medium text-indigo-600">{project.destination}</span>
+                            </div>
+                            <h3 className="font-bold text-gray-900 text-base mb-1 pr-6">{project.name}</h3>
+                            <div className="flex items-center gap-1 text-xs text-gray-400 mb-4">
+                              <Calendar className="w-3 h-3" />
+                              <span>
+                                {startDate.toLocaleDateString("ko-KR", { month: "short", day: "numeric" })} ~{" "}
+                                {endDate.toLocaleDateString("ko-KR", { month: "short", day: "numeric" })}
+                              </span>
+                              <span className="text-gray-300">·</span>
+                              <span>{days}일</span>
+                            </div>
+                            <div className="flex items-center justify-between pt-3 border-t border-gray-50">
+                              <div className="flex items-center gap-1 text-xs text-gray-400">
+                                <Users className="w-3.5 h-3.5" />
+                                <span>여행 보기</span>
+                              </div>
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                <ArrowRight className="w-4 h-4 text-indigo-400" />
+                              </div>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </AnimatePresence>
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: projects.length * 0.05 }}
+                      onClick={() => setShowCreate(true)}
+                      className="bg-white rounded-2xl border-2 border-dashed border-gray-200 p-5 cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/30 transition-all duration-200 flex flex-col items-center justify-center min-h-[180px] gap-3"
+                    >
+                      <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                        <Plus className="w-5 h-5 text-indigo-600" />
+                      </div>
+                      <p className="text-sm font-medium text-gray-500">새 여행 추가</p>
+                    </motion.div>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+        </main>
+
+        <CreateProjectModal
+          open={showCreate}
+          onClose={() => setShowCreate(false)}
+          onCreated={() => refetch()}
+        />
+      </div>
+    );
+  }
+
+  // 비로그인 랜딩 페이지
   return (
-    <div className="min-h-screen bg-[#FAFAF8]">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+    <div className="min-h-screen bg-white overflow-x-hidden">
+      {/* ── Nav ── */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-sm shadow-indigo-200">
               <Plane className="w-4 h-4 text-white" />
             </div>
-            <span className="font-bold text-gray-900 text-lg tracking-tight">
-              트립스플릿
-            </span>
+            <span className="font-bold text-gray-900 text-lg tracking-tight">트립스플릿</span>
           </div>
+          <a
+            href={getLoginUrl()}
+            className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-5 h-9 text-sm font-medium transition-colors shadow-sm shadow-indigo-200"
+          >
+            <LogIn className="w-4 h-4" />
+            시작하기
+          </a>
+        </div>
+      </nav>
 
-          <div className="flex items-center gap-3">
-            {isAuthenticated && (
-              <>
-                <div className="hidden sm:flex items-center gap-2">
-                  <div
-                    className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                    style={{ backgroundColor: "#6366f1" }}
-                  >
-                    {user?.name?.[0] ?? "U"}
-                  </div>
-                  <span className="text-sm text-gray-600">{user?.name}</span>
+      {/* ── Hero ── */}
+      <section className="relative pt-32 pb-24 px-4 sm:px-6 overflow-hidden">
+        {/* 배경 그라디언트 */}
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-white to-purple-50 pointer-events-none" />
+        <div className="absolute top-20 right-0 w-[600px] h-[600px] bg-indigo-100/40 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-purple-100/30 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative max-w-6xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="max-w-3xl"
+          >
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-full px-4 py-1.5 text-sm font-medium mb-6">
+              <Sparkles className="w-3.5 h-3.5" />
+              무료로 시작하는 스마트 여행 정산
+            </div>
+
+            {/* Headline */}
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-gray-900 leading-[1.05] tracking-tight mb-6">
+              여행 경비,<br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
+                이제 스마트하게
+              </span><br />
+              정산하세요
+            </h1>
+
+            <p className="text-xl text-gray-500 leading-relaxed mb-10 max-w-xl">
+              친구, 가족과 함께하는 여행의 모든 지출을 기록하고,
+              최소 이체 횟수로 깔끔하게 정산하세요.
+              복잡한 계산은 트립스플릿이 대신합니다.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <a
+                href={getLoginUrl()}
+                className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl px-8 h-14 text-lg font-semibold transition-all shadow-xl shadow-indigo-200 hover:shadow-indigo-300 hover:-translate-y-0.5"
+              >
+                무료로 시작하기
+                <ChevronRight className="w-5 h-5" />
+              </a>
+              <p className="text-sm text-gray-400 flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                신용카드 불필요 · 완전 무료
+              </p>
+            </div>
+          </motion.div>
+
+          {/* Hero 카드 미리보기 */}
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.2 }}
+            className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl"
+          >
+            {[
+              { label: "총 지출", value: "₩ 842,000", sub: "3박 4일 오사카 여행", color: "bg-indigo-600", textColor: "text-white" },
+              { label: "정산 완료", value: "4명", sub: "최소 3번 이체로 완료", color: "bg-white", textColor: "text-gray-900", border: true },
+              { label: "절약된 이체", value: "3회", sub: "최적화 알고리즘 적용", color: "bg-emerald-50", textColor: "text-emerald-800", border: true },
+            ].map((card) => (
+              <div
+                key={card.label}
+                className={`rounded-2xl p-5 ${card.color} ${card.border ? "border border-gray-100" : ""} shadow-sm`}
+              >
+                <p className={`text-xs font-medium mb-1 ${card.color === "bg-indigo-600" ? "text-indigo-200" : "text-gray-400"}`}>
+                  {card.label}
+                </p>
+                <p className={`text-2xl font-black ${card.textColor} mb-1`}>{card.value}</p>
+                <p className={`text-xs ${card.color === "bg-indigo-600" ? "text-indigo-200" : card.color === "bg-emerald-50" ? "text-emerald-600" : "text-gray-400"}`}>
+                  {card.sub}
+                </p>
+              </div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ── 기능 소개 ── */}
+      <section className="py-24 px-4 sm:px-6 bg-gray-50">
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-16"
+          >
+            <p className="text-indigo-600 font-semibold text-sm mb-3 tracking-wide uppercase">Features</p>
+            <h2 className="text-4xl sm:text-5xl font-black text-gray-900 mb-4">
+              여행 정산의 모든 것
+            </h2>
+            <p className="text-gray-500 text-lg max-w-xl mx-auto">
+              지출 기록부터 정산 완료까지, 여행 경비 관리에 필요한 모든 기능을 제공합니다.
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              {
+                icon: <Wallet className="w-6 h-6" />,
+                color: "bg-indigo-100 text-indigo-600",
+                title: "스마트 지출 기록",
+                desc: "카테고리, 날짜, 결제자, 분담 멤버를 한 번에 기록하세요. 공동경비는 자동으로 균등 분배됩니다.",
+              },
+              {
+                icon: <BarChart3 className="w-6 h-6" />,
+                color: "bg-purple-100 text-purple-600",
+                title: "카테고리별 분석",
+                desc: "식비, 교통, 숙소, 관광 등 카테고리별 지출을 차트로 한눈에 파악하세요.",
+              },
+              {
+                icon: <Users className="w-6 h-6" />,
+                color: "bg-emerald-100 text-emerald-600",
+                title: "최소 이체 정산",
+                desc: "복잡한 계산 없이 최소 이체 횟수로 모든 멤버의 정산을 완료하는 최적 경로를 제시합니다.",
+              },
+              {
+                icon: <Share2 className="w-6 h-6" />,
+                color: "bg-orange-100 text-orange-600",
+                title: "공유 링크",
+                desc: "정산 내역을 링크 하나로 공유하세요. 앱 설치 없이 누구나 확인할 수 있습니다.",
+              },
+              {
+                icon: <Calendar className="w-6 h-6" />,
+                color: "bg-blue-100 text-blue-600",
+                title: "사전 경비 관리",
+                desc: "항공권, 숙소 등 여행 전 결제한 비용도 별도로 기록하고 정산에 포함하세요.",
+              },
+              {
+                icon: <Shield className="w-6 h-6" />,
+                color: "bg-pink-100 text-pink-600",
+                title: "안전한 데이터",
+                desc: "모든 여행 데이터는 안전하게 저장됩니다. 언제 어디서나 여행 내역을 확인하세요.",
+              },
+            ].map((feature, i) => (
+              <motion.div
+                key={feature.title}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: i * 0.08 }}
+                className="bg-white rounded-2xl p-6 border border-gray-100 hover:shadow-md transition-shadow"
+              >
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${feature.color}`}>
+                  {feature.icon}
                 </div>
-                <button
-                  onClick={() => setShowCreate(true)}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-4 h-9 text-sm font-medium flex items-center gap-1.5 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  새 여행
-                </button>
-                <button
-                  onClick={logout}
-                  className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors"
-                  title="로그아웃"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </>
-            )}
+                <h3 className="font-bold text-gray-900 text-lg mb-2">{feature.title}</h3>
+                <p className="text-gray-500 text-sm leading-relaxed">{feature.desc}</p>
+              </motion.div>
+            ))}
           </div>
         </div>
-      </header>
+      </section>
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
-        {/* 비로그인 상태 */}
-        {!isAuthenticated && !loading && (
-          <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mb-6">
-              <Plane className="w-10 h-10 text-indigo-500" />
+      {/* ── 사용 흐름 ── */}
+      <section className="py-24 px-4 sm:px-6 bg-white">
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-16"
+          >
+            <p className="text-indigo-600 font-semibold text-sm mb-3 tracking-wide uppercase">How it works</p>
+            <h2 className="text-4xl sm:text-5xl font-black text-gray-900 mb-4">
+              3단계로 끝나는 정산
+            </h2>
+            <p className="text-gray-500 text-lg">복잡한 설정 없이 바로 시작하세요.</p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+            {/* 연결선 */}
+            <div className="hidden md:block absolute top-10 left-1/3 right-1/3 h-0.5 bg-gradient-to-r from-indigo-200 to-indigo-200" />
+
+            {[
+              {
+                step: "01",
+                title: "여행 프로젝트 생성",
+                desc: "여행 이름, 목적지, 날짜, 멤버를 입력하고 프로젝트를 만드세요. 1분이면 충분합니다.",
+                color: "bg-indigo-600",
+              },
+              {
+                step: "02",
+                title: "지출 기록",
+                desc: "여행 중 발생하는 모든 지출을 실시간으로 기록하세요. 결제자와 분담 멤버를 지정하면 됩니다.",
+                color: "bg-purple-600",
+              },
+              {
+                step: "03",
+                title: "정산 완료",
+                desc: "트립스플릿이 최소 이체 횟수로 정산 방법을 계산해드립니다. 링크로 공유하면 끝.",
+                color: "bg-emerald-600",
+              },
+            ].map((step, i) => (
+              <motion.div
+                key={step.step}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: i * 0.15 }}
+                className="relative text-center"
+              >
+                <div className={`w-20 h-20 ${step.color} rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg`}>
+                  <span className="text-white text-2xl font-black">{step.step}</span>
+                </div>
+                <h3 className="font-bold text-gray-900 text-xl mb-3">{step.title}</h3>
+                <p className="text-gray-500 leading-relaxed">{step.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 소셜 프루프 ── */}
+      <section className="py-16 px-4 sm:px-6 bg-indigo-600">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+            {[
+              { value: "무료", label: "완전 무료 서비스" },
+              { value: "최소", label: "이체 횟수 최적화" },
+              { value: "즉시", label: "공유 링크 생성" },
+              { value: "∞", label: "여행 프로젝트 생성" },
+            ].map((stat) => (
+              <div key={stat.label}>
+                <p className="text-4xl font-black text-white mb-1">{stat.value}</p>
+                <p className="text-indigo-200 text-sm">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA ── */}
+      <section className="py-32 px-4 sm:px-6 bg-white">
+        <div className="max-w-3xl mx-auto text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-xl shadow-indigo-200">
+              <Plane className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-3">
-              트립스플릿
-            </h1>
-            <p className="text-gray-500 mb-2 text-lg">
-              친구와 함께하는 여행 경비 정산
-            </p>
-            <p className="text-gray-400 text-sm mb-10 max-w-sm leading-relaxed">
-              여행 프로젝트를 만들고 지출을 기록하면<br />
-              자동으로 정산 금액을 계산해 드립니다.
+            <h2 className="text-4xl sm:text-5xl font-black text-gray-900 mb-6">
+              다음 여행,<br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
+                트립스플릿과 함께
+              </span>
+            </h2>
+            <p className="text-gray-500 text-lg mb-10 leading-relaxed">
+              여행 후 복잡한 정산 때문에 스트레스받지 마세요.<br />
+              트립스플릿이 깔끔하게 해결해드립니다.
             </p>
             <a
               href={getLoginUrl()}
-              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-8 h-12 text-base font-medium transition-colors shadow-lg shadow-indigo-200"
+              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl px-10 h-16 text-xl font-bold transition-all shadow-2xl shadow-indigo-200 hover:shadow-indigo-300 hover:-translate-y-1"
             >
-              <LogIn className="w-5 h-5" />
-              로그인하고 시작하기
+              지금 무료로 시작하기
+              <ChevronRight className="w-6 h-6" />
             </a>
-            <div className="mt-12 grid grid-cols-3 gap-6 max-w-lg">
-              {[
-                { icon: "✈️", title: "사전 결제 관리", desc: "항공권·숙소 등 여행 전 지출도 기록" },
-                { icon: "📊", title: "그래프 분석", desc: "카테고리별·날짜별 지출 시각화" },
-                { icon: "💸", title: "간편 정산", desc: "최소 이체 횟수로 정산 계산" },
-              ].map((f) => (
-                <div key={f.title} className="bg-white rounded-2xl p-4 border border-gray-100 text-center">
-                  <div className="text-2xl mb-2">{f.icon}</div>
-                  <p className="text-xs font-semibold text-gray-800 mb-1">{f.title}</p>
-                  <p className="text-xs text-gray-400 leading-relaxed">{f.desc}</p>
-                </div>
-              ))}
+            <p className="mt-4 text-sm text-gray-400">
+              로그인 한 번으로 바로 시작 · 신용카드 불필요
+            </p>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ── Footer ── */}
+      <footer className="py-10 px-4 sm:px-6 border-t border-gray-100 bg-gray-50">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-indigo-600 rounded-md flex items-center justify-center">
+              <Plane className="w-3 h-3 text-white" />
             </div>
+            <span className="font-bold text-gray-700 text-sm">트립스플릿</span>
           </div>
-        )}
-
-        {/* 로딩 상태 */}
-        {loading && (
-          <div className="flex items-center justify-center py-32">
-            <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-          </div>
-        )}
-
-        {/* 로그인 후 프로젝트 목록 */}
-        {isAuthenticated && !loading && (
-          <>
-            {projects.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-24 text-center">
-                <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mb-6">
-                  <Plane className="w-8 h-8 text-indigo-400" />
-                </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-3">
-                  첫 여행을 시작해볼까요?
-                </h2>
-                <p className="text-gray-500 mb-8 max-w-sm leading-relaxed">
-                  여행 프로젝트를 만들고 친구들과 함께 지출을 기록하고 정산해보세요.
-                </p>
-                <button
-                  onClick={() => setShowCreate(true)}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-8 h-11 text-base font-medium flex items-center gap-2 transition-colors"
-                >
-                  <Plus className="w-5 h-5" />
-                  새 여행 만들기
-                </button>
-              </div>
-            ) : (
-              <>
-                {/* 히어로 배너 */}
-                <div className="relative rounded-2xl overflow-hidden mb-10 h-48 sm:h-56 bg-gradient-to-r from-indigo-600 to-indigo-400">
-                  <div className="absolute inset-0 flex flex-col justify-center px-8">
-                    <p className="text-indigo-200 text-sm font-medium mb-1">
-                      함께하는 여행 정산
-                    </p>
-                    <h1 className="text-white text-2xl sm:text-3xl font-bold leading-tight">
-                      투명하고 간편한<br />여행 경비 관리
-                    </h1>
-                  </div>
-                  <div className="absolute right-8 bottom-0 opacity-20">
-                    <Plane className="w-32 h-32 text-white" />
-                  </div>
-                </div>
-
-                {/* 프로젝트 목록 */}
-                <div className="flex items-center justify-between mb-5">
-                  <h2 className="text-lg font-bold text-gray-900">
-                    내 여행 ({projects.length})
-                  </h2>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <AnimatePresence>
-                    {projects.map((project, idx) => {
-                      const startDate = new Date(project.startDate);
-                      const endDate = new Date(project.endDate);
-                      const days =
-                        Math.ceil(
-                          (endDate.getTime() - startDate.getTime()) /
-                            (1000 * 60 * 60 * 24)
-                        ) + 1;
-
-                      return (
-                        <motion.div
-                          key={project.id}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.95 }}
-                          transition={{ delay: idx * 0.05 }}
-                          onClick={() => handleOpenProject(project.id)}
-                          className="bg-white rounded-2xl border border-gray-100 p-5 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group relative"
-                        >
-                          {/* 삭제 버튼 */}
-                          <button
-                            onClick={(e) => handleDelete(project.id, e)}
-                            className={`absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center transition-all ${
-                              deleteConfirm === project.id
-                                ? "bg-red-500 text-white"
-                                : "bg-gray-100 text-gray-400 opacity-0 group-hover:opacity-100"
-                            }`}
-                            title={
-                              deleteConfirm === project.id
-                                ? "한 번 더 클릭하면 삭제됩니다"
-                                : "삭제"
-                            }
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-
-                          {/* 여행지 */}
-                          <div className="flex items-center gap-1.5 mb-3">
-                            <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center">
-                              <MapPin className="w-3.5 h-3.5 text-indigo-600" />
-                            </div>
-                            <span className="text-xs font-medium text-indigo-600">
-                              {project.destination}
-                            </span>
-                          </div>
-
-                          {/* 프로젝트 이름 */}
-                          <h3 className="font-bold text-gray-900 text-base mb-1 pr-6">
-                            {project.name}
-                          </h3>
-
-                          {/* 날짜 */}
-                          <div className="flex items-center gap-1 text-xs text-gray-400 mb-4">
-                            <Calendar className="w-3 h-3" />
-                            <span>
-                              {startDate.toLocaleDateString("ko-KR", {
-                                month: "short",
-                                day: "numeric",
-                              })}{" "}
-                              ~{" "}
-                              {endDate.toLocaleDateString("ko-KR", {
-                                month: "short",
-                                day: "numeric",
-                              })}
-                            </span>
-                            <span className="text-gray-300">·</span>
-                            <span>{days}일</span>
-                          </div>
-
-                          {/* 통계 */}
-                          <div className="flex items-center justify-between pt-3 border-t border-gray-50">
-                            <div className="flex items-center gap-1 text-xs text-gray-400">
-                              <Users className="w-3.5 h-3.5" />
-                              <span>멤버 관리</span>
-                            </div>
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                              <ArrowRight className="w-4 h-4 text-indigo-400" />
-                            </div>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
-                  </AnimatePresence>
-
-                  {/* 새 여행 추가 카드 */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: projects.length * 0.05 }}
-                    onClick={() => setShowCreate(true)}
-                    className="bg-white rounded-2xl border-2 border-dashed border-gray-200 p-5 cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/30 transition-all duration-200 flex flex-col items-center justify-center min-h-[180px] gap-3"
-                  >
-                    <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
-                      <Plus className="w-5 h-5 text-indigo-600" />
-                    </div>
-                    <p className="text-sm font-medium text-gray-500">새 여행 추가</p>
-                  </motion.div>
-                </div>
-              </>
-            )}
-          </>
-        )}
-      </main>
-
-      <CreateProjectModal
-        open={showCreate}
-        onClose={() => setShowCreate(false)}
-        onCreated={() => refetch()}
-      />
+          <p className="text-gray-400 text-sm">
+            © 2025 트립스플릿 · 친구와 함께하는 스마트 여행 정산
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
