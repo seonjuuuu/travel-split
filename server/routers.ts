@@ -126,12 +126,21 @@ export const appRouter = router({
         z.object({
           projectId: z.string(),
           name: z.string().min(1),
-          color: z.string().default("#6366f1"),
+          color: z.string().optional(),
         })
       )
       .mutation(async ({ input }) => {
         const id = nanoid();
-        return createMember({ id, projectId: input.projectId, name: input.name, isMe: false, color: input.color });
+        // 색상 자동 배정: 클라이언트가 전달하지 않으면 기존 멤버와 겹치지 않는 색상 선택
+        let color = input.color;
+        if (!color) {
+          const COLORS = ["#6366f1","#ef4444","#f97316","#eab308","#22c55e","#14b8a6","#3b82f6","#8b5cf6","#ec4899","#06b6d4","#84cc16","#f43f5e"];
+          const existingMembers = await getMembersByProjectId(input.projectId);
+          const usedColors = existingMembers.map((m: { color: string }) => m.color);
+          const available = COLORS.filter(c => !usedColors.includes(c));
+          color = available.length > 0 ? available[0] : COLORS[usedColors.length % COLORS.length];
+        }
+        return createMember({ id, projectId: input.projectId, name: input.name, isMe: false, color });
       }),
 
     update: protectedProcedure

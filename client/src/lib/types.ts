@@ -103,15 +103,41 @@ export interface SettlementResult {
 }
 
 export const MEMBER_COLORS = [
-  "#6366f1", // indigo
-  "#ec4899", // pink
-  "#f97316", // orange
-  "#22c55e", // green
-  "#3b82f6", // blue
-  "#a855f7", // purple
-  "#ef4444", // red
-  "#14b8a6", // teal
+  "#6366f1", // 인디고
+  "#ef4444", // 빨강
+  "#f97316", // 주황
+  "#eab308", // 노랑
+  "#22c55e", // 초록
+  "#14b8a6", // 청록
+  "#3b82f6", // 파랑
+  "#8b5cf6", // 보라
+  "#ec4899", // 핑크
+  "#06b6d4", // 시안
+  "#84cc16", // 라임
+  "#f43f5e", // 로즈
 ];
+
+export const MEMBER_COLOR_NAMES: Record<string, string> = {
+  "#6366f1": "인디고",
+  "#ef4444": "빨강",
+  "#f97316": "주황",
+  "#eab308": "노랑",
+  "#22c55e": "초록",
+  "#14b8a6": "청록",
+  "#3b82f6": "파랑",
+  "#8b5cf6": "보라",
+  "#ec4899": "핑크",
+  "#06b6d4": "시안",
+  "#84cc16": "라임",
+  "#f43f5e": "로즈",
+};
+
+// 기존 멤버 색상과 겹치지 않는 다음 색상 자동 배정
+export function getNextMemberColor(usedColors: string[]): string {
+  const available = MEMBER_COLORS.filter(c => !usedColors.includes(c));
+  if (available.length > 0) return available[0];
+  return MEMBER_COLORS[usedColors.length % MEMBER_COLORS.length];
+}
 
 // 사전 결제 여부 판별 (isPreTrip 플래그 우선, 없으면 날짜로 판별)
 export function isPreTripExpense(expense: Expense, projectStartDate: string): boolean {

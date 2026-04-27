@@ -85,6 +85,7 @@ export default function ExpenseList({ project, expenses, selectedDate, onRefresh
         className={`bg-white rounded-2xl border overflow-hidden hover:shadow-sm transition-shadow ${
           isPreTripCard ? "border-amber-200" : "border-gray-100"
         }`}
+        style={{ borderLeftWidth: 4, borderLeftColor: payer?.color ?? (isPreTripCard ? "#f59e0b" : "#e5e7eb") }}
       >
         <div
           className="flex items-center gap-3 p-4 cursor-pointer"
@@ -118,12 +119,13 @@ export default function ExpenseList({ project, expenses, selectedDate, onRefresh
               {payer && (
                 <div className="flex items-center gap-1">
                   <div
-                    className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[9px] font-bold"
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-sm"
                     style={{ backgroundColor: payer.color }}
                   >
                     {payer.name[0]}
                   </div>
-                  <span>{payer.name} 결제</span>
+                  <span className="font-medium" style={{ color: payer.color }}>{payer.name}</span>
+                  <span className="text-gray-400">결제</span>
                 </div>
               )}
               <span className="text-gray-200">·</span>

@@ -138,12 +138,13 @@ export default function SettlementPanel({ project }: Props) {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: idx * 0.05 }}
-                className="px-5 py-4"
+                className="px-5 py-4 border-l-4"
+                style={{ borderLeftColor: member.color }}
               >
                 <div className="flex items-center gap-3">
                   {/* 아바타 */}
                   <div
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
+                    className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-base shrink-0 shadow-sm"
                     style={{ backgroundColor: member.color }}
                   >
                     {member.name[0]}
@@ -152,10 +153,10 @@ export default function SettlementPanel({ project }: Props) {
                   {/* 이름 + 금액 */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="font-semibold text-gray-900 text-sm">
+                      <span className="font-semibold text-sm" style={{ color: member.color }}>
                         {member.name}
                         {member.isMe && (
-                          <span className="text-xs text-indigo-500 ml-1">(나)</span>
+                          <span className="text-xs text-gray-400 ml-1">(나)</span>
                         )}
                       </span>
                       <span
@@ -258,15 +259,16 @@ export default function SettlementPanel({ project }: Props) {
                     {/* From */}
                     <div className="flex items-center gap-1.5 flex-1 min-w-0">
                       <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-sm"
                         style={{ backgroundColor: from.color }}
                       >
                         {from.name[0]}
                       </div>
                       <span
-                        className={`text-sm font-medium truncate ${
-                          isSettled ? "text-gray-400 line-through" : "text-gray-900"
+                        className={`text-sm font-bold truncate ${
+                          isSettled ? "text-gray-300 line-through" : ""
                         }`}
+                        style={{ color: isSettled ? undefined : from.color }}
                       >
                         {from.name}
                       </span>
@@ -291,14 +293,15 @@ export default function SettlementPanel({ project }: Props) {
                     {/* To */}
                     <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
                       <span
-                        className={`text-sm font-medium truncate ${
-                          isSettled ? "text-gray-400 line-through" : "text-gray-900"
+                        className={`text-sm font-bold truncate ${
+                          isSettled ? "text-gray-300 line-through" : ""
                         }`}
+                        style={{ color: isSettled ? undefined : to.color }}
                       >
                         {to.name}
                       </span>
                       <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-sm"
                         style={{ backgroundColor: to.color }}
                       >
                         {to.name[0]}
