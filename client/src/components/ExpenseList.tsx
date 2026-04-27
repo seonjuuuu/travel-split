@@ -93,6 +93,7 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
     const payer = project.members.find((m) => m.id === expense.payerId);
     const isExpanded = expandedId === expense.id;
     const isPreTripCard = Boolean(expense.isPreTrip) === true;
+    const isSharedCostCard = Boolean(expense.isSharedCost) === true;
     const participants =
       expense.participantIds.length > 0
         ? expense.participantIds
@@ -108,7 +109,7 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
         exit={{ opacity: 0, x: -20 }}
         transition={{ delay: idx * 0.03 }}
         className={`bg-white rounded-2xl border overflow-hidden hover:shadow-sm transition-shadow ${
-          isPreTripCard ? "border-amber-200" : "border-gray-100"
+          isSharedCostCard ? "border-emerald-200" : isPreTripCard ? "border-amber-200" : "border-gray-100"
         }`}
       >
         <div
@@ -140,7 +141,11 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
               </span>
             </div>
             <div className="flex items-center gap-2 text-xs text-gray-400">
-              {payer && (
+              {isSharedCostCard ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-semibold">
+                  공동경비
+                </span>
+              ) : payer ? (
                 <div className="flex items-center gap-1">
                   <div
                     className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-sm"
@@ -151,9 +156,11 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
                   <span className="font-medium" style={{ color: payer.color }}>{payer.name}</span>
                   <span className="text-gray-400">결제</span>
                 </div>
+              ) : null}
+              {!isSharedCostCard && (
+                <><span className="text-gray-200">·</span>
+                <span>{participants.length}명 분담</span></>
               )}
-              <span className="text-gray-200">·</span>
-              <span>{participants.length}명 분담</span>
             </div>
           </div>
 

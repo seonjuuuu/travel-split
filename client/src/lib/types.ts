@@ -71,6 +71,7 @@ export interface Expense {
   date: string; // YYYY-MM-DD (사전 결제는 빈 문자열 허용)
   note?: string | null;
   isPreTrip?: boolean; // 여행 전 사전 결제 여부 (날짜 무관)
+  isSharedCost?: boolean; // 공동경비 - 정산 제외 (결제자 없이 공동 부담)
 }
 
 export interface TravelProject {
@@ -202,6 +203,9 @@ export function calculateSettlements(
   }));
 
   expenses.forEach((expense) => {
+    // 공동경비는 정산 계산에서 제외
+    if (Boolean(expense.isSharedCost)) return;
+
     const payer = results.find((r) => r.memberId === expense.payerId);
     if (payer) {
       payer.totalPaid += expense.amount;

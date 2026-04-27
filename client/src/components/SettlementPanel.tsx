@@ -35,6 +35,10 @@ export default function SettlementPanel({ project }: Props) {
   );
 
   const totalExpense = project.expenses.reduce((s, e) => s + e.amount, 0);
+  const sharedCostTotal = project.expenses
+    .filter((e) => Boolean(e.isSharedCost))
+    .reduce((s, e) => s + e.amount, 0);
+  const settlementTotal = totalExpense - sharedCostTotal;
 
   const getTransferKey = (fromId: string, toId: string, amount: number) =>
     `${project.id}-${fromId}-${toId}-${amount}`;
@@ -120,6 +124,11 @@ export default function SettlementPanel({ project }: Props) {
           <h3 className="font-bold text-gray-900 text-sm">멤버별 정산 현황</h3>
           <p className="text-xs text-gray-400 mt-0.5">
             총 지출 {formatAmount(totalExpense)}
+            {sharedCostTotal > 0 && (
+              <span className="ml-2 text-emerald-600">
+                (공동경비 {formatAmount(sharedCostTotal)} 제외 · 정산 대상 {formatAmount(settlementTotal)})
+              </span>
+            )}
           </p>
         </div>
         <div className="divide-y divide-gray-50">

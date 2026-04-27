@@ -60,6 +60,8 @@ export default function SharedProjectPage() {
     members.forEach((m) => { paid[m.id] = 0; owed[m.id] = 0; });
 
     expenses.forEach((expense) => {
+      // 공동경비는 정산 계산에서 제외
+      if (Boolean(expense.isSharedCost)) return;
       paid[expense.payerId] = (paid[expense.payerId] || 0) + expense.amount;
       const participants =
         expense.participantIds.length > 0
@@ -489,6 +491,7 @@ function renderExpenseCard(
     participantIds: string[];
     date: string;
     isPreTrip: boolean;
+    isSharedCost?: boolean | number | null;
     note?: string | null;
   },
   project: { members: { id: string; name: string; color: string }[] },
@@ -496,6 +499,7 @@ function renderExpenseCard(
   setExpandedId: (id: string | null) => void
 ) {
   const catConfig = CATEGORY_CONFIG[expense.category as keyof typeof CATEGORY_CONFIG];
+  const isSharedCostCard = Boolean(expense.isSharedCost);
   const payer = project.members.find((m) => m.id === expense.payerId);
   const participants =
     expense.participantIds.length > 0
@@ -529,7 +533,11 @@ function renderExpenseCard(
             </span>
           </div>
           <div className="flex items-center gap-2 text-xs text-gray-400">
-            {payer && (
+            {isSharedCostCard ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-semibold">
+                공동경비
+              </span>
+            ) : payer ? (
               <div className="flex items-center gap-1">
                 <div
                   className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
@@ -540,7 +548,7 @@ function renderExpenseCard(
                 <span className="font-medium" style={{ color: payer.color }}>{payer.name}</span>
                 <span className="text-gray-400">결제</span>
               </div>
-            )}
+            ) : null}
             {expense.date && (
               <>
                 <span className="text-gray-200">·</span>

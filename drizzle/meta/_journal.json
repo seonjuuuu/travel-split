@@ -29,6 +29,13 @@
       "when": 1777265809992,
       "tag": "0003_grey_kitty_pryde",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1777267520815,
+      "tag": "0004_fearless_gladiator",
+      "breakpoints": true
     }
   ]
 }

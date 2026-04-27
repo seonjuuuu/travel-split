@@ -1,0 +1,1 @@
+ALTER TABLE `expenses` ADD `isSharedCost` boolean DEFAULT false NOT NULL;

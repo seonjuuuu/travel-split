@@ -77,6 +77,7 @@ export const expenses = mysqlTable("expenses", {
   participantIds: varchar("participantIds", { length: 2000 }).notNull().default("[]"), // JSON array
   date: varchar("date", { length: 10 }).notNull().default(""), // YYYY-MM-DD (사전결제는 빈 문자열)
   isPreTrip: boolean("isPreTrip").default(false).notNull(),
+  isSharedCost: boolean("isSharedCost").default(false).notNull(), // 공동경비 - 정산 제외
   note: text("note"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),

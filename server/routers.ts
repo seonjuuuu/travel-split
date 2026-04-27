@@ -57,6 +57,7 @@ export const appRouter = router({
             ...e,
             participantIds: JSON.parse(e.participantIds || "[]") as string[],
             isPreTrip: Boolean(e.isPreTrip),
+            isSharedCost: Boolean(e.isSharedCost),
           })),
         };
       }),
@@ -154,6 +155,7 @@ export const appRouter = router({
             ...e,
             participantIds: JSON.parse(e.participantIds || "[]") as string[],
             isPreTrip: Boolean(e.isPreTrip),
+            isSharedCost: Boolean(e.isSharedCost),
           })),
         };
       }),
@@ -218,6 +220,7 @@ export const appRouter = router({
           participantIds: z.array(z.string()),
           date: z.string().default(""),
           isPreTrip: z.boolean().default(false),
+          isSharedCost: z.boolean().default(false),
           note: z.string().optional(),
         })
       )
@@ -233,6 +236,7 @@ export const appRouter = router({
           participantIds: JSON.stringify(input.participantIds),
           date: input.date,
           isPreTrip: input.isPreTrip,
+          isSharedCost: input.isSharedCost,
           note: input.note ?? null,
         });
       }),
@@ -248,6 +252,7 @@ export const appRouter = router({
           participantIds: z.array(z.string()).optional(),
           date: z.string().optional(),
           isPreTrip: z.boolean().optional(),
+          isSharedCost: z.boolean().optional(),
           note: z.string().optional(),
         })
       )

@@ -46,6 +46,7 @@ export default function AddExpenseModal({
   const travelDates = getDatesInRange(project.startDate, project.endDate);
 
   const [isPreTrip, setIsPreTrip] = useState(defaultIsPreTrip);
+  const [isSharedCost, setIsSharedCost] = useState(Boolean(editExpense?.isSharedCost));
   const [form, setForm] = useState({
     title: "",
     amount: "",
@@ -61,6 +62,7 @@ export default function AddExpenseModal({
     if (editExpense) {
       const preTrip = Boolean(editExpense.isPreTrip) === true;
       setIsPreTrip(preTrip);
+      setIsSharedCost(Boolean(editExpense.isSharedCost));
       setForm({
         title: editExpense.title,
         amount: editExpense.amount.toString(),
@@ -75,6 +77,7 @@ export default function AddExpenseModal({
       });
     } else {
       setIsPreTrip(defaultIsPreTrip);
+      setIsSharedCost(false);
       setForm({
         title: "",
         amount: "",
@@ -93,8 +96,8 @@ export default function AddExpenseModal({
     if (!form.title.trim()) errs.title = "지출 내용을 입력해주세요";
     if (!form.amount || isNaN(Number(form.amount)) || Number(form.amount) <= 0)
       errs.amount = "올바른 금액을 입력해주세요";
-    if (!form.payerId) errs.payerId = "결제자를 선택해주세요";
-    if (form.participantIds.length === 0)
+    if (!isSharedCost && !form.payerId) errs.payerId = "결제자를 선택해주세요";
+    if (!isSharedCost && form.participantIds.length === 0)
       errs.participantIds = "분담 멤버를 1명 이상 선택해주세요";
     if (!isPreTrip && !form.date) errs.date = "날짜를 선택해주세요";
     return errs;
@@ -117,6 +120,7 @@ export default function AddExpenseModal({
       date: isPreTrip ? "" : form.date,
       note: form.note.trim() || undefined,
       isPreTrip: isPreTrip,
+      isSharedCost: isSharedCost,
     };
 
     if (editExpense) {
@@ -314,45 +318,70 @@ export default function AddExpenseModal({
 
           {/* 결제자 */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-gray-700">결제자</Label>
-            <div className="flex flex-wrap gap-2">
-              {project.members.map((member) => (
-                <button
-                  key={member.id}
-                  type="button"
-                  onClick={() => setForm({ ...form, payerId: member.id })}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all border-2 ${
-                    form.payerId === member.id
-                      ? "border-current text-white"
-                      : "border-transparent bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
-                  style={
-                    form.payerId === member.id
-                      ? { backgroundColor: member.color, borderColor: member.color }
-                      : {}
-                  }
-                >
-                  <div
-                    className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                    style={{
-                      backgroundColor:
-                        form.payerId === member.id
-                          ? "rgba(255,255,255,0.3)"
-                          : member.color,
-                    }}
-                  >
-                    {member.name[0]}
-                  </div>
-                  {member.name}
-                  {member.isMe && <span className="text-[10px] opacity-70">(나)</span>}
-                </button>
-              ))}
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium text-gray-700">결제자</Label>
+              {/* 공동경비 토글 */}
+              <button
+                type="button"
+                onClick={() => setIsSharedCost((v) => !v)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border-2 ${
+                  isSharedCost
+                    ? "bg-emerald-500 text-white border-emerald-500"
+                    : "bg-gray-100 text-gray-500 border-transparent hover:bg-gray-200"
+                }`}
+              >
+                <span className="text-sm">{isSharedCost ? "✓" : "💚"}</span>
+                공동경비
+              </button>
             </div>
+            {isSharedCost ? (
+              <div className="flex items-center gap-2 px-4 py-3 bg-emerald-50 rounded-xl border border-emerald-200">
+                <span className="text-emerald-600 text-lg">💚</span>
+                <div>
+                  <p className="text-sm font-semibold text-emerald-700">공동경비로 처리</p>
+                  <p className="text-xs text-emerald-600">정산 없이 공동으로 부담한 비용이에요</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {project.members.map((member) => (
+                  <button
+                    key={member.id}
+                    type="button"
+                    onClick={() => setForm({ ...form, payerId: member.id })}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all border-2 ${
+                      form.payerId === member.id
+                        ? "border-current text-white"
+                        : "border-transparent bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                    style={
+                      form.payerId === member.id
+                        ? { backgroundColor: member.color, borderColor: member.color }
+                        : {}
+                    }
+                  >
+                    <div
+                      className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                      style={{
+                        backgroundColor:
+                          form.payerId === member.id
+                            ? "rgba(255,255,255,0.3)"
+                            : member.color,
+                      }}
+                    >
+                      {member.name[0]}
+                    </div>
+                    {member.name}
+                    {member.isMe && <span className="text-[10px] opacity-70">(나)</span>}
+                  </button>
+                ))}
+              </div>
+            )}
             {errors.payerId && <p className="text-xs text-red-500">{errors.payerId}</p>}
           </div>
 
           {/* 분담 멤버 */}
-          <div className="space-y-2">
+          {!isSharedCost && <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium text-gray-700">분담 멤버</Label>
               <button
@@ -400,7 +429,7 @@ export default function AddExpenseModal({
             {errors.participantIds && (
               <p className="text-xs text-red-500">{errors.participantIds}</p>
             )}
-          </div>
+          </div>}
 
           {/* 메모 */}
           <div className="space-y-1.5">
