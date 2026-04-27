@@ -451,6 +451,75 @@ export default function Home() {
         </div>
       </section>
 
+      {/* 앱 미리보기 */}
+      <section className="py-24 px-4 sm:px-6 bg-white">
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-16"
+          >
+            <p className="text-indigo-600 font-semibold text-sm mb-3 tracking-wide uppercase">Product Preview</p>
+            <h2 className="text-4xl sm:text-5xl font-black text-gray-900 mb-4">이렇게 사용해요</h2>
+            <p className="text-gray-500 text-lg max-w-xl mx-auto">
+              직관적인 UI로 여행 경비를 기록하고, 한 번에 정산까지 완료하세요.
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+            {[
+              {
+                img: "https://d2xsxph8kpxj0f.cloudfront.net/310519663399785344/chJuDgeTCigwkJFTVfRKZv/mockup-projects-94nXgcqMqCEw8fbztgmGDi.webp",
+                step: "01",
+                title: "여행 프로젝트 한눈에",
+                desc: "내 모든 여행을 카드로 정리하고, 멤버·날짜·총 지출을 바로 확인하세요.",
+              },
+              {
+                img: "https://d2xsxph8kpxj0f.cloudfront.net/310519663399785344/chJuDgeTCigwkJFTVfRKZv/mockup-expenses-ePug7HCxyJP7LmXaBo6p4d.webp",
+                step: "02",
+                title: "지출 기록 & 필터링",
+                desc: "날짜별·멤버별로 지출을 필터링하고, 공동경비는 자동으로 균등 분배됩니다.",
+              },
+              {
+                img: "https://d2xsxph8kpxj0f.cloudfront.net/310519663399785344/chJuDgeTCigwkJFTVfRKZv/mockup-settlement-bzTyeF4aqqiuWLtHFD6qbT.webp",
+                step: "03",
+                title: "최소 이체 정산 결과",
+                desc: "복잡한 계산 없이 최소 이체 횟수로 모든 멤버의 정산을 완료하세요.",
+              },
+            ].map((item, i) => (
+              <motion.div
+                key={item.step}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: i * 0.12 }}
+                className="flex flex-col items-center"
+              >
+                {/* 폰 목업 이미지 */}
+                <div className="w-full max-w-[260px] mx-auto mb-6">
+                  <img
+                    src={item.img}
+                    alt={item.title}
+                    className="w-full rounded-3xl"
+                    loading="lazy"
+                  />
+                </div>
+                {/* 설명 */}
+                <div className="text-center">
+                  <span className="inline-block text-xs font-bold text-indigo-600 bg-indigo-50 rounded-full px-3 py-1 mb-3">
+                    STEP {item.step}
+                  </span>
+                  <h3 className="font-bold text-gray-900 text-xl mb-2">{item.title}</h3>
+                  <p className="text-gray-500 text-sm leading-relaxed">{item.desc}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* 사용 흐름 */}
       <section className="py-24 px-4 sm:px-6 bg-white">
         <div className="max-w-6xl mx-auto">
