@@ -14,11 +14,13 @@ export function registerOAuthRoutes(app: Express) {
     const code = getQueryParam(req, "code");
     const state = getQueryParam(req, "state");
 
+    console.log("[OAuth] Callback received, code:", code ? "present" : "missing", "state:", state ? "present" : "missing");
+
     if (!code || !state) {
+      console.error("[OAuth] Missing code or state. Query:", JSON.stringify(req.query));
       res.status(400).json({ error: "code and state are required" });
       return;
     }
-
     try {
       const tokenResponse = await sdk.exchangeCodeForToken(code, state);
       const userInfo = await sdk.getUserInfo(tokenResponse.accessToken);
@@ -45,9 +47,12 @@ export function registerOAuthRoutes(app: Express) {
       res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
 
       res.redirect(302, "/");
-    } catch (error) {
-      console.error("[OAuth] Callback failed", error);
-      res.status(500).json({ error: "OAuth callback failed" });
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      const errData = (error as any)?.response?.data;
+      console.error("[OAuth] Callback failed:", errMsg, "response data:", JSON.stringify(errData));
+      // 오류 발생 시 홈으로 리다이렉트하되 오류 쿼리 파라미터 포함
+      res.redirect(302, `/?auth_error=${encodeURIComponent(errMsg)}`);
     }
   });
 }

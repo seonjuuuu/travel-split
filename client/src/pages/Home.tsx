@@ -13,8 +13,9 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { toast } from "sonner";
 import CreateProjectModal from "@/components/CreateProjectModal";
 
 function formatAmount(amount: number) {
@@ -26,6 +27,19 @@ export default function Home() {
   const { user, loading, isAuthenticated, logout } = useAuth();
   const [showCreate, setShowCreate] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  // OAuth 오류 파라미터 감지
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const authError = params.get("auth_error");
+    if (authError) {
+      toast.error("로그인 오류: " + authError);
+      // URL에서 파라미터 제거
+      const url = new URL(window.location.href);
+      url.searchParams.delete("auth_error");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, []);
 
   const { data: projects = [], refetch } = trpc.projects.list.useQuery(undefined, {
     enabled: isAuthenticated,
