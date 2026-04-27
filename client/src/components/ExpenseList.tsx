@@ -18,7 +18,25 @@ interface Props {
 }
 
 export default function ExpenseList({ project, expenses, selectedDate, onRefresh }: Props) {
-  const deleteExpenseMutation = trpc.expenses.delete.useMutation({ onSuccess: () => onRefresh?.() });
+  const utils = trpc.useUtils();
+  const deleteExpenseMutation = trpc.expenses.delete.useMutation({
+    onMutate: async (vars) => {
+      await utils.projects.get.cancel({ id: project.id });
+      const prev = utils.projects.get.getData({ id: project.id });
+      utils.projects.get.setData({ id: project.id }, (old) => {
+        if (!old) return old;
+        return { ...old, expenses: old.expenses.filter((e) => e.id !== vars.id) };
+      });
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) utils.projects.get.setData({ id: project.id }, ctx.prev);
+    },
+    onSettled: () => {
+      utils.projects.get.invalidate({ id: project.id });
+      onRefresh?.();
+    },
+  });
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -326,6 +344,10 @@ export default function ExpenseList({ project, expenses, selectedDate, onRefresh
           project={project}
           editExpense={editingExpense}
           defaultIsPreTrip={editingExpense.isPreTrip === true}
+          onSaved={() => {
+            utils.projects.get.invalidate({ id: project.id });
+            onRefresh?.();
+          }}
         />
       )}
     </>

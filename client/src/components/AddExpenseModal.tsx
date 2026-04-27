@@ -33,8 +33,16 @@ export default function AddExpenseModal({
   defaultIsPreTrip = false,
   onSaved,
 }: Props) {
-  const addExpense = trpc.expenses.add.useMutation({ onSuccess: () => { onSaved?.(); onClose(); } });
-  const updateExpense = trpc.expenses.update.useMutation({ onSuccess: () => { onSaved?.(); onClose(); } });
+  const utils = trpc.useUtils();
+
+  const invalidateAndClose = () => {
+    utils.projects.get.invalidate({ id: project.id });
+    onSaved?.();
+    onClose();
+  };
+
+  const addExpense = trpc.expenses.add.useMutation({ onSuccess: invalidateAndClose });
+  const updateExpense = trpc.expenses.update.useMutation({ onSuccess: invalidateAndClose });
   const travelDates = getDatesInRange(project.startDate, project.endDate);
 
   const [isPreTrip, setIsPreTrip] = useState(defaultIsPreTrip);

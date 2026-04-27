@@ -18,7 +18,14 @@ interface Props {
 }
 
 export default function ProjectSettingsModal({ open, onClose, project, onRefresh }: Props) {
-  const updateProjectMutation = trpc.projects.update.useMutation({ onSuccess: () => { onRefresh?.(); onClose(); } });
+  const utils = trpc.useUtils();
+  const updateProjectMutation = trpc.projects.update.useMutation({
+    onSuccess: () => {
+      utils.projects.get.invalidate({ id: project.id });
+      onRefresh?.();
+      onClose();
+    },
+  });
   const [form, setForm] = useState({
     name: project.name,
     destination: project.destination,

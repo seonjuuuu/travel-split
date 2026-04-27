@@ -52,9 +52,55 @@ function ColorPicker({
 }
 
 export default function MembersPanel({ open, onClose, project, onRefresh }: Props) {
-  const addMemberMutation = trpc.members.add.useMutation({ onSuccess: () => onRefresh?.() });
-  const updateMemberMutation = trpc.members.update.useMutation({ onSuccess: () => onRefresh?.() });
-  const deleteMemberMutation = trpc.members.delete.useMutation({ onSuccess: () => onRefresh?.() });
+  const utils = trpc.useUtils();
+
+  const invalidate = () => {
+    utils.projects.get.invalidate({ id: project.id });
+    onRefresh?.();
+  };
+
+  const addMemberMutation = trpc.members.add.useMutation({
+    onSuccess: invalidate,
+  });
+  const updateMemberMutation = trpc.members.update.useMutation({
+    onMutate: async (vars) => {
+      // 낙관적 업데이트: 서버 응답 전에 캐시 즉시 반영
+      await utils.projects.get.cancel({ id: project.id });
+      const prev = utils.projects.get.getData({ id: project.id });
+      utils.projects.get.setData({ id: project.id }, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          members: old.members.map((m) =>
+            m.id === vars.id
+              ? { ...m, name: vars.name ?? m.name, color: vars.color ?? m.color }
+              : m
+          ),
+        };
+      });
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      // 오류 시 롤백
+      if (ctx?.prev) utils.projects.get.setData({ id: project.id }, ctx.prev);
+    },
+    onSettled: invalidate,
+  });
+  const deleteMemberMutation = trpc.members.delete.useMutation({
+    onMutate: async (vars) => {
+      await utils.projects.get.cancel({ id: project.id });
+      const prev = utils.projects.get.getData({ id: project.id });
+      utils.projects.get.setData({ id: project.id }, (old) => {
+        if (!old) return old;
+        return { ...old, members: old.members.filter((m) => m.id !== vars.id) };
+      });
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) utils.projects.get.setData({ id: project.id }, ctx.prev);
+    },
+    onSettled: invalidate,
+  });
 
   const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
