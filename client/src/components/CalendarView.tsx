@@ -44,6 +44,11 @@ export default function CalendarView({ project, selectedDate, onSelectDate }: Pr
     return dateStr >= project.startDate && dateStr <= project.endDate;
   };
 
+  // 사전 결제가 있는 날짜도 클릭 가능
+  const isClickable = (dateStr: string) => {
+    return isInTravelRange(dateStr) || expenseByDate[dateStr] > 0;
+  };
+
   const formatDateStr = (y: number, m: number, d: number) => {
     return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
   };
@@ -97,6 +102,8 @@ export default function CalendarView({ project, selectedDate, onSelectDate }: Pr
           const day = i + 1;
           const dateStr = formatDateStr(year, month, day);
           const inRange = isInTravelRange(dateStr);
+          const clickable = isClickable(dateStr);
+          const isPreTrip = !inRange && clickable;
           const isSelected = selectedDate === dateStr;
           const isToday = dateStr === today;
           const dayExpenseTotal = expenseByDate[dateStr] || 0;
@@ -106,12 +113,14 @@ export default function CalendarView({ project, selectedDate, onSelectDate }: Pr
           return (
             <button
               key={day}
-              onClick={() => inRange && onSelectDate(dateStr)}
-              disabled={!inRange}
+              onClick={() => clickable && onSelectDate(dateStr)}
+              disabled={!clickable}
               className={`
                 relative flex flex-col items-center justify-start py-1.5 rounded-xl transition-all min-h-[52px]
-                ${!inRange ? "opacity-30 cursor-not-allowed" : "cursor-pointer"}
-                ${isSelected ? "bg-indigo-600 text-white shadow-sm" : ""}
+                ${!clickable ? "opacity-20 cursor-not-allowed" : "cursor-pointer"}
+                ${isSelected && isPreTrip ? "bg-amber-500 text-white shadow-sm" : ""}
+                ${isSelected && !isPreTrip ? "bg-indigo-600 text-white shadow-sm" : ""}
+                ${!isSelected && isPreTrip ? "bg-amber-50 hover:bg-amber-100" : ""}
                 ${!isSelected && inRange ? "hover:bg-indigo-50" : ""}
                 ${isToday && !isSelected ? "ring-2 ring-indigo-300 ring-offset-1" : ""}
               `}
@@ -120,6 +129,8 @@ export default function CalendarView({ project, selectedDate, onSelectDate }: Pr
                 className={`text-xs font-bold leading-none ${
                   isSelected
                     ? "text-white"
+                    : isPreTrip
+                    ? "text-amber-600"
                     : dayOfWeek === 0
                     ? "text-red-400"
                     : dayOfWeek === 6
@@ -134,7 +145,7 @@ export default function CalendarView({ project, selectedDate, onSelectDate }: Pr
               {hasExpense && (
                 <span
                   className={`text-[9px] font-medium mt-0.5 leading-none ${
-                    isSelected ? "text-indigo-200" : "text-indigo-500"
+                    isSelected ? "text-white/70" : isPreTrip ? "text-amber-500" : "text-indigo-500"
                   }`}
                 >
                   {dayExpenseTotal >= 10000
@@ -143,7 +154,7 @@ export default function CalendarView({ project, selectedDate, onSelectDate }: Pr
                 </span>
               )}
               {hasExpense && !isSelected && (
-                <div className="w-1 h-1 rounded-full bg-indigo-400 mt-0.5" />
+                <div className={`w-1 h-1 rounded-full mt-0.5 ${isPreTrip ? "bg-amber-400" : "bg-indigo-400"}`} />
               )}
             </button>
           );
@@ -151,12 +162,18 @@ export default function CalendarView({ project, selectedDate, onSelectDate }: Pr
       </div>
 
       {/* 여행 날짜 범위 표시 */}
-      <div className="px-4 pb-3 flex items-center gap-2 text-xs text-gray-400">
-        <div className="w-3 h-3 rounded-full bg-indigo-100 border border-indigo-300" />
-        <span>
-          여행 기간: {project.startDate.replace(/-/g, ".")} ~{" "}
-          {project.endDate.replace(/-/g, ".")}
-        </span>
+      <div className="px-4 pb-3 space-y-1">
+        <div className="flex items-center gap-2 text-xs text-gray-400">
+          <div className="w-3 h-3 rounded-full bg-indigo-100 border border-indigo-300" />
+          <span>
+            여행 기간: {project.startDate.replace(/-/g, ".")} ~{" "}
+            {project.endDate.replace(/-/g, ".")}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-amber-500">
+          <div className="w-3 h-3 rounded-full bg-amber-100 border border-amber-300" />
+          <span>사전 결제 날짜 (여행 전 결제 내역)</span>
+        </div>
       </div>
     </div>
   );

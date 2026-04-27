@@ -68,6 +68,7 @@ export interface Expense {
   participantIds: string[]; // who shares the cost
   date: string; // YYYY-MM-DD
   note?: string;
+  isPreTrip?: boolean; // 여행 전 사전 결제 여부
 }
 
 export interface TravelProject {
@@ -107,6 +108,11 @@ export const MEMBER_COLORS = [
   "#ef4444", // red
   "#14b8a6", // teal
 ];
+
+// 사전 결제 여부 판별
+export function isPreTripExpense(expense: Expense, projectStartDate: string): boolean {
+  return expense.date < projectStartDate;
+}
 
 // 날짜 유틸리티
 export function getDatesInRange(start: string, end: string): string[] {

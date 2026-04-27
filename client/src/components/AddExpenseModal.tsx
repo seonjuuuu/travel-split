@@ -1,5 +1,6 @@
 // 지출 추가/수정 모달
 // Design: Clean form with category selection and member picker
+// 사전 결제 지원: 여행 전 날짜도 직접 입력 가능
 
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { useApp } from "@/contexts/AppContext";
 import type { Expense, ExpenseCategory, TravelProject } from "@/lib/types";
 import { CATEGORY_CONFIG, getDatesInRange, formatDate, formatDayOfWeek } from "@/lib/types";
+import { CalendarDays, Clock } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -20,6 +22,8 @@ interface Props {
 
 const CATEGORIES = Object.keys(CATEGORY_CONFIG) as ExpenseCategory[];
 
+type DateInputMode = "pills" | "manual";
+
 export default function AddExpenseModal({
   open,
   onClose,
@@ -30,6 +34,7 @@ export default function AddExpenseModal({
   const { addExpense, updateExpense } = useApp();
   const travelDates = getDatesInRange(project.startDate, project.endDate);
 
+  const [dateInputMode, setDateInputMode] = useState<DateInputMode>("pills");
   const [form, setForm] = useState({
     title: "",
     amount: "",
@@ -41,6 +46,9 @@ export default function AddExpenseModal({
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // 여행 전 날짜인지 판별
+  const isPreTrip = form.date < project.startDate;
+
   useEffect(() => {
     if (editExpense) {
       setForm({
@@ -48,22 +56,31 @@ export default function AddExpenseModal({
         amount: editExpense.amount.toString(),
         category: editExpense.category,
         payerId: editExpense.payerId,
-        participantIds: editExpense.participantIds.length > 0
-          ? editExpense.participantIds
-          : project.members.map((m) => m.id),
+        participantIds:
+          editExpense.participantIds.length > 0
+            ? editExpense.participantIds
+            : project.members.map((m) => m.id),
         date: editExpense.date,
         note: editExpense.note || "",
       });
+      // 여행 전 날짜면 수동 입력 모드로
+      if (editExpense.date < project.startDate) {
+        setDateInputMode("manual");
+      } else {
+        setDateInputMode("pills");
+      }
     } else {
+      const initialDate = defaultDate || project.startDate;
       setForm({
         title: "",
         amount: "",
         category: "식비",
         payerId: project.members[0]?.id || "",
         participantIds: project.members.map((m) => m.id),
-        date: defaultDate || project.startDate,
+        date: initialDate,
         note: "",
       });
+      setDateInputMode("pills");
     }
     setErrors({});
   }, [editExpense, open, defaultDate, project]);
@@ -76,6 +93,7 @@ export default function AddExpenseModal({
     if (!form.payerId) errs.payerId = "결제자를 선택해주세요";
     if (form.participantIds.length === 0)
       errs.participantIds = "분담 멤버를 1명 이상 선택해주세요";
+    if (!form.date) errs.date = "날짜를 선택해주세요";
     return errs;
   };
 
@@ -95,6 +113,7 @@ export default function AddExpenseModal({
       participantIds: form.participantIds,
       date: form.date,
       note: form.note.trim() || undefined,
+      isPreTrip: form.date < project.startDate,
     };
 
     if (editExpense) {
@@ -131,7 +150,19 @@ export default function AddExpenseModal({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md rounded-2xl p-0 overflow-hidden max-h-[90vh] overflow-y-auto">
         {/* 헤더 */}
-        <div className="bg-indigo-600 px-6 pt-5 pb-4 sticky top-0 z-10">
+        <div
+          className={`px-6 pt-5 pb-4 sticky top-0 z-10 transition-colors ${
+            isPreTrip ? "bg-amber-500" : "bg-indigo-600"
+          }`}
+        >
+          {isPreTrip && (
+            <div className="flex items-center gap-1.5 mb-1">
+              <Clock className="w-3.5 h-3.5 text-amber-100" />
+              <span className="text-amber-100 text-xs font-medium">
+                여행 전 사전 결제
+              </span>
+            </div>
+          )}
           <DialogHeader>
             <DialogTitle className="text-white text-lg font-bold">
               {editExpense ? "지출 수정" : "지출 추가"}
@@ -142,32 +173,103 @@ export default function AddExpenseModal({
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
           {/* 날짜 선택 */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-gray-700">날짜</Label>
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {travelDates.map((date, idx) => (
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium text-gray-700">날짜</Label>
+              {/* 입력 모드 전환 */}
+              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
                 <button
-                  key={date}
                   type="button"
-                  onClick={() => setForm({ ...form, date })}
-                  className={`shrink-0 flex flex-col items-center gap-0.5 w-12 py-2 rounded-xl transition-all ${
-                    form.date === date
-                      ? "bg-indigo-600 text-white"
-                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                  onClick={() => {
+                    setDateInputMode("pills");
+                    // 여행 기간 내 날짜로 리셋
+                    if (form.date < project.startDate) {
+                      setForm((f) => ({ ...f, date: project.startDate }));
+                    }
+                  }}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all ${
+                    dateInputMode === "pills"
+                      ? "bg-white text-indigo-600 shadow-sm"
+                      : "text-gray-400 hover:text-gray-600"
                   }`}
                 >
-                  <span className="text-[10px] font-medium opacity-70">
-                    {formatDayOfWeek(date)}
-                  </span>
-                  <span className="text-sm font-bold leading-none">
-                    {new Date(date).getDate()}
-                  </span>
-                  <span className="text-[9px] opacity-60">{idx + 1}일</span>
+                  <CalendarDays className="w-3 h-3" />
+                  여행 날짜
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => setDateInputMode("manual")}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all ${
+                    dateInputMode === "manual"
+                      ? "bg-white text-amber-600 shadow-sm"
+                      : "text-gray-400 hover:text-gray-600"
+                  }`}
+                >
+                  <Clock className="w-3 h-3" />
+                  직접 입력
+                </button>
+              </div>
             </div>
-            <p className="text-xs text-gray-400">
-              선택: {formatDate(form.date)}
-            </p>
+
+            {/* 여행 날짜 버튼 모드 */}
+            {dateInputMode === "pills" && (
+              <>
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                  {travelDates.map((date, idx) => (
+                    <button
+                      key={date}
+                      type="button"
+                      onClick={() => setForm({ ...form, date })}
+                      className={`shrink-0 flex flex-col items-center gap-0.5 w-12 py-2 rounded-xl transition-all ${
+                        form.date === date
+                          ? "bg-indigo-600 text-white"
+                          : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                      }`}
+                    >
+                      <span className="text-[10px] font-medium opacity-70">
+                        {formatDayOfWeek(date)}
+                      </span>
+                      <span className="text-sm font-bold leading-none">
+                        {new Date(date).getDate()}
+                      </span>
+                      <span className="text-[9px] opacity-60">{idx + 1}일</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400">
+                  선택: {formatDate(form.date)}
+                </p>
+              </>
+            )}
+
+            {/* 직접 입력 모드 (사전 결제 포함) */}
+            {dateInputMode === "manual" && (
+              <div className="space-y-2">
+                <Input
+                  type="date"
+                  value={form.date}
+                  max={project.endDate}
+                  onChange={(e) => setForm({ ...form, date: e.target.value })}
+                  className={`rounded-xl border-gray-200 ${
+                    isPreTrip ? "border-amber-300 bg-amber-50 focus:border-amber-400" : ""
+                  } ${errors.date ? "border-red-400" : ""}`}
+                />
+                {isPreTrip ? (
+                  <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                    <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <p className="text-xs text-amber-700 font-medium">
+                      여행 시작({formatDate(project.startDate)}) 전 사전 결제로 기록됩니다
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400">
+                    선택: {form.date ? formatDate(form.date) : "날짜를 선택해주세요"}
+                  </p>
+                )}
+                {errors.date && (
+                  <p className="text-xs text-red-500">{errors.date}</p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* 카테고리 */}
@@ -211,7 +313,7 @@ export default function AddExpenseModal({
             <Input
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              placeholder="스시 오마카세"
+              placeholder="항공권, 숙소 예약 등"
               className={`rounded-xl border-gray-200 ${errors.title ? "border-red-400" : ""}`}
             />
             {errors.title && (
@@ -227,7 +329,7 @@ export default function AddExpenseModal({
                 type="number"
                 value={form.amount}
                 onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                placeholder="50000"
+                placeholder="350000"
                 className={`rounded-xl border-gray-200 pr-12 ${errors.amount ? "border-red-400" : ""}`}
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
@@ -238,7 +340,7 @@ export default function AddExpenseModal({
               <p className="text-xs text-red-500">{errors.amount}</p>
             )}
             {amountNum > 0 && form.participantIds.length > 0 && (
-              <p className="text-xs text-indigo-600 font-medium">
+              <p className={`text-xs font-medium ${isPreTrip ? "text-amber-600" : "text-indigo-600"}`}>
                 1인당 {perPerson.toLocaleString()}원
               </p>
             )}
@@ -260,13 +362,21 @@ export default function AddExpenseModal({
                   }`}
                   style={
                     form.payerId === member.id
-                      ? { backgroundColor: member.color, borderColor: member.color }
+                      ? {
+                          backgroundColor: member.color,
+                          borderColor: member.color,
+                        }
                       : {}
                   }
                 >
                   <div
                     className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                    style={{ backgroundColor: form.payerId === member.id ? "rgba(255,255,255,0.3)" : member.color }}
+                    style={{
+                      backgroundColor:
+                        form.payerId === member.id
+                          ? "rgba(255,255,255,0.3)"
+                          : member.color,
+                    }}
                   >
                     {member.name[0]}
                   </div>
@@ -311,13 +421,20 @@ export default function AddExpenseModal({
                     }`}
                     style={
                       isSelected
-                        ? { backgroundColor: member.color, borderColor: member.color }
+                        ? {
+                            backgroundColor: member.color,
+                            borderColor: member.color,
+                          }
                         : {}
                     }
                   >
                     <div
                       className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                      style={{ backgroundColor: isSelected ? "rgba(255,255,255,0.3)" : member.color }}
+                      style={{
+                        backgroundColor: isSelected
+                          ? "rgba(255,255,255,0.3)"
+                          : member.color,
+                      }}
                     >
                       {member.name[0]}
                     </div>
@@ -339,7 +456,7 @@ export default function AddExpenseModal({
             <Input
               value={form.note}
               onChange={(e) => setForm({ ...form, note: e.target.value })}
-              placeholder="간단한 메모를 남겨보세요"
+              placeholder="항공권 왕복, 조기 예약 등"
               className="rounded-xl border-gray-200"
             />
           </div>
@@ -356,9 +473,13 @@ export default function AddExpenseModal({
             </Button>
             <Button
               type="submit"
-              className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium"
+              className={`flex-1 text-white rounded-xl font-medium transition-colors ${
+                isPreTrip
+                  ? "bg-amber-500 hover:bg-amber-600"
+                  : "bg-indigo-600 hover:bg-indigo-700"
+              }`}
             >
-              {editExpense ? "수정 완료" : "지출 추가"}
+              {editExpense ? "수정 완료" : isPreTrip ? "사전 결제 추가" : "지출 추가"}
             </Button>
           </div>
         </form>
