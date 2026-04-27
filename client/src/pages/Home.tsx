@@ -81,6 +81,7 @@ export default function Home() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   useEffect(() => {
+    document.title = "트립스플릿 - 여행 경비 정산 앱 | 친구와 함께하는 스마트 여행 정산";
     const params = new URLSearchParams(window.location.search);
     const authError = params.get("auth_error");
     if (authError) {
