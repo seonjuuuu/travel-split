@@ -176,12 +176,13 @@ export default function SettlementPanel({ project }: Props) {
                         {formatAmount(balanceAbs)}
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-gray-400">
-                      <span>결제 {formatAmount(result.totalPaid)}</span>
+                    <div className="flex items-center gap-2 text-xs text-gray-400 flex-wrap">
+                      <span>결제 {formatAmount(result.totalPaid + result.sharedCostPaid)}</span>
                       <span className="text-gray-200">·</span>
-                      <span>
-                        부담 {formatAmount(Math.round(result.totalShare))}
-                      </span>
+                      <span>부담 {formatAmount(Math.round(result.totalShare))}</span>
+                      {result.sharedCostPaid > 0 && (
+                        <span className="text-emerald-600 font-medium">(공동경비 {formatAmount(Math.round(result.sharedCostPaid))} 포함)</span>
+                      )}
                     </div>
                     {/* 프로그레스 바 */}
                     <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -191,7 +192,7 @@ export default function SettlementPanel({ project }: Props) {
                           width: `${
                             totalExpense > 0
                               ? Math.min(
-                                  (result.totalPaid / totalExpense) * 100,
+                                  ((result.totalPaid + result.sharedCostPaid) / totalExpense) * 100,
                                   100
                                 )
                               : 0

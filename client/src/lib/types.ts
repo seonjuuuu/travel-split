@@ -98,9 +98,10 @@ export interface Settlement {
 export interface SettlementResult {
   memberId: string;
   memberName: string;
-  totalPaid: number; // 실제로 낸 돈
+  totalPaid: number; // 정산 대상 지출에서 낙 돈
   totalShare: number; // 내야 할 돈
   balance: number; // 양수 = 받을 돈, 음수 = 줄 돈
+  sharedCostPaid: number; // 공동경비로 낙 돈 (정산 제외)
 }
 
 export const MEMBER_COLORS = [
@@ -200,11 +201,23 @@ export function calculateSettlements(
     totalPaid: 0,
     totalShare: 0,
     balance: 0,
+    sharedCostPaid: 0,
   }));
 
   expenses.forEach((expense) => {
-    // 공동경비는 정산 계산에서 제외
-    if (Boolean(expense.isSharedCost)) return;
+    // 공동경비는 정산 계산에서 제외 - 하지만 멤버별 지출 통계에는 포함
+    if (Boolean(expense.isSharedCost)) {
+      // 공동경비: 결제자가 있으면 해당 멤버의 sharedCostPaid에 직접 추가
+      // 결제자가 없으면 모든 멤버에 균등 분배
+      if (expense.payerId) {
+        const sharedPayer = results.find((r) => r.memberId === expense.payerId);
+        if (sharedPayer) sharedPayer.sharedCostPaid += expense.amount;
+      } else {
+        const share = expense.amount / members.length;
+        results.forEach((r) => { r.sharedCostPaid += share; });
+      }
+      return;
+    }
 
     const payer = results.find((r) => r.memberId === expense.payerId);
     if (payer) {
