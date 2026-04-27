@@ -151,7 +151,6 @@ export default function MembersPanel({ open, onClose, project, onRefresh }: Prop
                 <div
                   key={member.id}
                   className="bg-white rounded-2xl border border-gray-100 p-4"
-                  style={{ borderLeftWidth: 4, borderLeftColor: member.color }}
                 >
                   <div className="flex items-center gap-3">
                     {/* 아바타 */}
@@ -227,7 +226,7 @@ export default function MembersPanel({ open, onClose, project, onRefresh }: Prop
                     </div>
 
                     {/* 액션 버튼 */}
-                    {!isEditing && !member.isMe && (
+                    {!isEditing && (
                       <div className="flex gap-1">
                         <button
                           onClick={() => {
@@ -236,17 +235,19 @@ export default function MembersPanel({ open, onClose, project, onRefresh }: Prop
                             setEditColor(member.color);
                           }}
                           className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors"
-                          title="이름/색상 변경"
+                          title="색상 변경"
                         >
                           <span className="text-xs">✏️</span>
                         </button>
-                        <button
-                          onClick={() => handleRemove(member.id)}
-                          className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors"
-                          title="멤버 삭제"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {!member.isMe && (
+                          <button
+                            onClick={() => handleRemove(member.id)}
+                            className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors"
+                            title="멤버 삭제"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
