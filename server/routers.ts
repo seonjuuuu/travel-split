@@ -1,7 +1,5 @@
 import { nanoid } from "nanoid";
 import { z } from "zod";
-import { COOKIE_NAME } from "@shared/const";
-import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import {
@@ -28,13 +26,10 @@ export const appRouter = router({
   system: systemRouter,
 
   // ── 인증 ──────────────────────────────────────────────────
+  // 회원가입/로그인/로그아웃은 프론트엔드가 Supabase Auth SDK로 직접 처리한다.
+  // 여기서는 Authorization 헤더의 Supabase access token으로 복원된 프로필만 반환.
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
-    logout: publicProcedure.mutation(({ ctx }) => {
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
-      return { success: true } as const;
-    }),
   }),
 
   // ── 여행 프로젝트 ─────────────────────────────────────────────

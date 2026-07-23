@@ -1,40 +1,12 @@
 {
   "version": "7",
-  "dialect": "mysql",
+  "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
-      "version": "5",
-      "when": 1777262406281,
-      "tag": "0000_grey_ken_ellis",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "5",
-      "when": 1777262472522,
-      "tag": "0001_keen_hammerhead",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "5",
-      "when": 1777262587759,
-      "tag": "0002_easy_the_hunter",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "5",
-      "when": 1777265809992,
-      "tag": "0003_grey_kitty_pryde",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "5",
-      "when": 1777267520815,
-      "tag": "0004_fearless_gladiator",
+      "version": "7",
+      "when": 1784768515832,
+      "tag": "0000_natural_maginty",
       "breakpoints": true
     }
   ]

@@ -1,1 +1,0 @@
-ALTER TABLE `travel_projects` ADD `shareToken` varchar(32);

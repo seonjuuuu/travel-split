@@ -1,1 +1,0 @@
-ALTER TABLE `expenses` MODIFY COLUMN `participantIds` varchar(2000) NOT NULL DEFAULT '[]';

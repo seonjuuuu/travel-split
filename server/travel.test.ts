@@ -1,16 +1,15 @@
+import { randomUUID } from "crypto";
 import { describe, expect, it } from "vitest";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
 
-function createAuthContext(userId = 1): { ctx: TrpcContext } {
+function createAuthContext(userId = randomUUID()): { ctx: TrpcContext } {
   const user: AuthenticatedUser = {
     id: userId,
-    openId: `test-user-${userId}`,
-    email: `test${userId}@example.com`,
+    email: `test-${userId}@example.com`,
     name: `Test User ${userId}`,
-    loginMethod: "manus",
     role: "user",
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -23,9 +22,7 @@ function createAuthContext(userId = 1): { ctx: TrpcContext } {
       protocol: "https",
       headers: {},
     } as TrpcContext["req"],
-    res: {
-      clearCookie: () => {},
-    } as TrpcContext["res"],
+    res: {} as TrpcContext["res"],
   };
 
   return { ctx };
@@ -33,18 +30,19 @@ function createAuthContext(userId = 1): { ctx: TrpcContext } {
 
 describe("auth.me", () => {
   it("returns current user when authenticated", async () => {
-    const { ctx } = createAuthContext();
+    const userId = randomUUID();
+    const { ctx } = createAuthContext(userId);
     const caller = appRouter.createCaller(ctx);
     const me = await caller.auth.me();
     expect(me).toBeDefined();
-    expect(me?.name).toBe("Test User 1");
+    expect(me?.name).toBe(`Test User ${userId}`);
   });
 
   it("returns null when not authenticated", async () => {
     const ctx: TrpcContext = {
       user: null,
       req: { protocol: "https", headers: {} } as TrpcContext["req"],
-      res: { clearCookie: () => {} } as TrpcContext["res"],
+      res: {} as TrpcContext["res"],
     };
     const caller = appRouter.createCaller(ctx);
     const me = await caller.auth.me();
@@ -54,7 +52,7 @@ describe("auth.me", () => {
 
 describe("projects", () => {
   it("creates and lists a project", async () => {
-    const { ctx } = createAuthContext(999);
+    const { ctx } = createAuthContext();
     const caller = appRouter.createCaller(ctx);
 
     const created = await caller.projects.create({
@@ -80,7 +78,7 @@ describe("projects", () => {
   });
 
   it("updates a project", async () => {
-    const { ctx } = createAuthContext(998);
+    const { ctx } = createAuthContext();
     const caller = appRouter.createCaller(ctx);
 
     const created = await caller.projects.create({
@@ -103,7 +101,7 @@ describe("projects", () => {
 
 describe("members", () => {
   it("adds and deletes a member", async () => {
-    const { ctx } = createAuthContext(997);
+    const { ctx } = createAuthContext();
     const caller = appRouter.createCaller(ctx);
 
     const project = await caller.projects.create({
@@ -135,7 +133,7 @@ describe("members", () => {
 
 describe("expenses", () => {
   it("adds and deletes an expense", async () => {
-    const { ctx } = createAuthContext(996);
+    const { ctx } = createAuthContext();
     const caller = appRouter.createCaller(ctx);
 
     const project = await caller.projects.create({
@@ -173,7 +171,7 @@ describe("expenses", () => {
   });
 
   it("adds a pre-trip expense without date", async () => {
-    const { ctx } = createAuthContext(995);
+    const { ctx } = createAuthContext();
     const caller = appRouter.createCaller(ctx);
 
     const project = await caller.projects.create({

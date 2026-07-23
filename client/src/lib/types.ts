@@ -84,7 +84,7 @@ export interface TravelProject {
   expenses: Expense[];
   createdAt: string | Date;
   updatedAt?: string | Date;
-  userId?: number;
+  userId?: string;
 }
 
 export interface Settlement {

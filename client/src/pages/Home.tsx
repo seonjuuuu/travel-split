@@ -1,7 +1,6 @@
 // 트립스플릿 - 홈 페이지 (랜딩 + 프로젝트 목록)
 // Design: Clean Bold — no gradients, no box-shadows
 import { useAuth } from "@/_core/hooks/useAuth";
-import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -22,7 +21,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import CreateProjectModal from "@/components/CreateProjectModal";
 
@@ -273,13 +272,13 @@ export default function Home() {
             <TripSplitLogo size={32} />
             <span className="font-bold text-gray-900 text-lg tracking-tight">트립스플릿</span>
           </div>
-          <a
-            href={getLoginUrl()}
+          <Link
+            href="/login"
             className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-5 h-9 text-sm font-medium transition-colors"
           >
             <LogIn className="w-4 h-4" />
             시작하기
-          </a>
+          </Link>
         </div>
       </nav>
 
@@ -312,13 +311,13 @@ export default function Home() {
             </p>
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <a
-                href={getLoginUrl()}
+              <Link
+                href="/login"
                 className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl px-8 h-14 text-lg font-semibold transition-colors"
               >
                 무료로 시작하기
                 <ChevronRight className="w-5 h-5" />
-              </a>
+              </Link>
               <p className="text-sm text-gray-400 flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                 신용카드 불필요 · 완전 무료
@@ -615,13 +614,13 @@ export default function Home() {
               여행 후 복잡한 정산 때문에 스트레스받지 마세요.<br />
               트립스플릿이 깔끔하게 해결해드립니다.
             </p>
-            <a
-              href={getLoginUrl()}
+            <Link
+              href="/login"
               className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl px-10 h-16 text-xl font-bold transition-colors"
             >
               지금 무료로 시작하기
               <ChevronRight className="w-6 h-6" />
-            </a>
+            </Link>
             <p className="mt-4 text-sm text-gray-400">
               로그인 한 번으로 바로 시작 · 신용카드 불필요
             </p>
