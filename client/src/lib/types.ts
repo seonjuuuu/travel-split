@@ -1,6 +1,15 @@
 // 여행 정산 앱 - 핵심 타입 정의
-// Design: Scandinavian Minimal + Travel Scrapbook
-// Colors: Indigo primary, pastel category colors, white background
+// Design: Boarding Pass — 인디고 대신 항공사 블루, 이모지 대신 lucide 아이콘
+
+import {
+  BedDouble,
+  Bus,
+  Compass,
+  ShoppingBag,
+  Tag,
+  Utensils,
+  type LucideIcon,
+} from "lucide-react";
 
 export type ExpenseCategory =
   | "식비"
@@ -12,42 +21,42 @@ export type ExpenseCategory =
 
 export const CATEGORY_CONFIG: Record<
   ExpenseCategory,
-  { color: string; bg: string; icon: string; textColor: string }
+  { color: string; bg: string; icon: LucideIcon; textColor: string }
 > = {
   식비: {
     color: "#22c55e",
     bg: "#dcfce7",
-    icon: "🍽️",
+    icon: Utensils,
     textColor: "#15803d",
   },
   교통: {
     color: "#3b82f6",
     bg: "#dbeafe",
-    icon: "🚌",
+    icon: Bus,
     textColor: "#1d4ed8",
   },
   숙박: {
     color: "#a855f7",
     bg: "#f3e8ff",
-    icon: "🏨",
+    icon: BedDouble,
     textColor: "#7e22ce",
   },
   관광: {
     color: "#f97316",
     bg: "#ffedd5",
-    icon: "🗺️",
+    icon: Compass,
     textColor: "#c2410c",
   },
   쇼핑: {
     color: "#ec4899",
     bg: "#fce7f3",
-    icon: "🛍️",
+    icon: ShoppingBag,
     textColor: "#be185d",
   },
   기타: {
     color: "#6b7280",
     bg: "#f3f4f6",
-    icon: "📌",
+    icon: Tag,
     textColor: "#374151",
   },
 };
@@ -58,6 +67,7 @@ export interface Member {
   isMe: boolean;
   color: string; // avatar background color
   projectId?: string;
+  profileId?: string | null; // 이 멤버로 로그인해서 공동 편집 중인 계정 (없으면 이름표뿐인 멤버)
   createdAt?: Date | string;
 }
 
@@ -72,6 +82,7 @@ export interface Expense {
   note?: string | null;
   isPreTrip?: boolean; // 여행 전 사전 결제 여부 (날짜 무관)
   isSharedCost?: boolean; // 공동경비 - 정산 제외 (결제자 없이 공동 부담)
+  isPersonal?: boolean; // 개인경비 - 정산 제외, 결제자 본인의 지출로만 기록
 }
 
 export interface TravelProject {
@@ -85,6 +96,8 @@ export interface TravelProject {
   createdAt: string | Date;
   updatedAt?: string | Date;
   userId?: string;
+  shareToken?: string | null;
+  editToken?: string | null;
 }
 
 export interface Settlement {
@@ -102,6 +115,7 @@ export interface SettlementResult {
   totalShare: number; // 내야 할 돈
   balance: number; // 양수 = 받을 돈, 음수 = 줄 돈
   sharedCostPaid: number; // 공동경비로 낙 돈 (정산 제외)
+  personalPaid: number; // 개인경비로 낙 돈 (정산 제외)
 }
 
 export const MEMBER_COLORS = [
@@ -202,9 +216,17 @@ export function calculateSettlements(
     totalShare: 0,
     balance: 0,
     sharedCostPaid: 0,
+    personalPaid: 0,
   }));
 
   expenses.forEach((expense) => {
+    // 개인경비는 정산 계산에서 완전히 제외 - 결제자 본인의 지출로만 집계
+    if (Boolean(expense.isPersonal)) {
+      const payer = results.find((r) => r.memberId === expense.payerId);
+      if (payer) payer.personalPaid += expense.amount;
+      return;
+    }
+
     // 공동경비는 정산 계산에서 제외 - 하지만 멤버별 지출 통계에는 포함
     if (Boolean(expense.isSharedCost)) {
       // 공동경비: 항상 전체 멤버 수로 균등 분배 (결제자 상관없이 모두가 함께 낸 돈)

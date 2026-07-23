@@ -3,6 +3,23 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ── 보딩패스 컨셉: 항공사 블루로 인디고 팔레트 전체 교체 ──────────
+   기존 코드 전반에 흩어진 indigo-* 유틸리티가 이 스케일을 그대로 참조하므로
+   여기 한 곳만 바꾸면 앱 전체의 포인트 컬러가 일괄 반영된다. */
+@theme {
+  --color-indigo-50: #EAF3F9;
+  --color-indigo-100: #D3E7F2;
+  --color-indigo-200: #A8CEE4;
+  --color-indigo-300: #7BB3D5;
+  --color-indigo-400: #4E97C4;
+  --color-indigo-500: #2E7EAE;
+  --color-indigo-600: #1E6FA8;
+  --color-indigo-700: #185C8C;
+  --color-indigo-800: #134870;
+  --color-indigo-900: #0F3A5A;
+  --color-indigo-950: #0A2740;
+}
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -44,10 +61,10 @@
 
 :root {
   --font-sans: 'Noto Sans KR', sans-serif;
-  --primary: oklch(0.511 0.262 276.966);
-  --primary-foreground: oklch(0.97 0.014 254.604);
-  --sidebar-primary: oklch(0.511 0.262 276.966);
-  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
+  --primary: #1E6FA8;
+  --primary-foreground: #F6F7F2;
+  --sidebar-primary: #1E6FA8;
+  --sidebar-primary-foreground: #F6F7F2;
   --chart-1: var(--color-blue-300);
   --chart-2: var(--color-blue-500);
   --chart-3: var(--color-blue-600);
@@ -80,10 +97,10 @@
 }
 
 .dark {
-  --primary: oklch(0.511 0.262 276.966);
-  --primary-foreground: oklch(0.97 0.014 254.604);
-  --sidebar-primary: var(--color-blue-500);
-  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
+  --primary: #4FA3E0;
+  --primary-foreground: #16242F;
+  --sidebar-primary: #4FA3E0;
+  --sidebar-primary-foreground: #16242F;
   --background: oklch(0.141 0.005 285.823);
   --foreground: oklch(0.85 0.005 65);
   --card: oklch(0.21 0.006 285.885);
@@ -206,4 +223,81 @@
 .font-numeric {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
+}
+
+/* ── 보딩패스 티켓 모티프 ─────────────────────────────────────
+   발권기/전광판 느낌의 모노스페이스 + 절취선 + 바코드 장식.
+   .tix-mono: 노선/날짜/금액 등 데이터성 텍스트
+   .tix-perf: 티켓 절취선 (좌우에 배경색과 같은 원으로 펀치 구멍 표현)
+   .tix-stub: 티켓 오른쪽의 세로 절취 스텁 (탑승권 반쪽처럼 뜯어내는 조각) */
+.tix-mono {
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * 가로 절취선(펀치 구멍 포함). 카드 폭 전체(edge-to-edge)에 붙여 쓴다 - 좌우 마진을 주지 않아야
+ * 구멍 원의 중심이 카드의 실제 테두리에 정확히 걸린다.
+ * 반드시 지켜야 할 두 가지:
+ *   1) 이 div를 감싸는 카드는 overflow: hidden이면 안 된다 (구멍이 카드 테두리 밖으로 살짝
+ *      삐져나가야 "뜯어낸 자국"처럼 보이는데, hidden이면 그 부분이 잘려서 반원이 안 보인다)
+ *   2) --tix-hole-bg를 이 카드 "뒤에 있는" 배경색(카드 자신의 배경색이 아니라 카드 바깥 페이지
+ *      배경색)으로 맞춰야 구멍이 자연스럽게 뚫린 것처럼 보인다
+ */
+.tix-perf {
+  --tix-hole-bg: #E4E6DF;
+  position: relative;
+  height: 0;
+  border-top: 2px dashed rgba(18, 34, 45, 0.22);
+}
+.tix-perf::before,
+.tix-perf::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 20px;
+  height: 20px;
+  background: var(--tix-hole-bg);
+  border-radius: 9999px;
+  transform: translateY(-50%);
+}
+.tix-perf::before { left: -10px; }
+.tix-perf::after { right: -10px; }
+
+/*
+ * 세로 절취 스텁 (항공권처럼 카드 오른쪽에 뜯어내는 조각을 붙여놓은 느낌).
+ * 카드 전체 높이에 걸쳐 세로로 붙여 쓰고, tix-perf와 마찬가지로 감싸는 카드는
+ * overflow: hidden이면 안 된다(위아래 펀치 구멍이 카드 테두리에 잘림).
+ * --tix-hole-bg도 동일하게 카드 바깥 배경색으로 맞춘다.
+ */
+.tix-stub {
+  --tix-hole-bg: #E4E6DF;
+  position: relative;
+  width: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-left: 2px dashed rgba(18, 34, 45, 0.22);
+}
+.tix-stub::before,
+.tix-stub::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  background: var(--tix-hole-bg);
+  border-radius: 9999px;
+  transform: translateX(-50%);
+}
+.tix-stub::before { top: -10px; }
+.tix-stub::after { bottom: -10px; }
+
+.tix-stub-code {
+  writing-mode: vertical-rl;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: rgba(18, 34, 45, 0.4);
 }

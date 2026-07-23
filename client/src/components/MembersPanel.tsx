@@ -5,16 +5,18 @@ import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import type { TravelProject } from "@/lib/types";
 import { MEMBER_COLORS, MEMBER_COLOR_NAMES, getNextMemberColor } from "@/lib/types";
-import { Plus, Trash2, Crown, UserPlus, Check, Palette } from "lucide-react";
+import { Plus, Trash2, Crown, UserPlus, Check, Palette, Pencil } from "lucide-react";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   project: TravelProject;
   onRefresh?: () => void;
+  newMemberIds?: Set<string>;
 }
 
 // 색상 선택 팔레트 컴포넌트
@@ -51,7 +53,12 @@ function ColorPicker({
   );
 }
 
-export default function MembersPanel({ open, onClose, project, onRefresh }: Props) {
+export default function MembersPanel({ open, onClose, project, onRefresh, newMemberIds }: Props) {
+  const { user } = useAuth();
+  // 로그인 계정과 연결된 멤버(진짜 "나") 우선, 없으면 isMe로 표시된 멤버로 폴백
+  const myMemberId =
+    project.members.find((m) => m.profileId === user?.id)?.id ??
+    project.members.find((m) => m.isMe)?.id;
   const utils = trpc.useUtils();
 
   const invalidate = () => {
@@ -147,8 +154,7 @@ export default function MembersPanel({ open, onClose, project, onRefresh }: Prop
   };
 
   const handleRemove = (id: string) => {
-    const member = project.members.find((m) => m.id === id);
-    if (member?.isMe) return;
+    if (id === myMemberId) return;
     deleteMemberMutation.mutate({ id });
   };
 
@@ -200,11 +206,18 @@ export default function MembersPanel({ open, onClose, project, onRefresh }: Prop
                 >
                   <div className="flex items-center gap-3">
                     {/* 아바타 */}
-                    <div
-                      className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-base shrink-0 shadow-sm"
-                      style={{ backgroundColor: member.color }}
-                    >
-                      {member.name[0]}
+                    <div className="relative shrink-0">
+                      <div
+                        className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-base shadow-sm"
+                        style={{ backgroundColor: member.color }}
+                      >
+                        {member.name[0]}
+                      </div>
+                      {newMemberIds?.has(member.id) && (
+                        <span className="absolute -top-1.5 -right-1.5 px-1 py-px rounded-full bg-red-500 text-white text-[9px] font-bold leading-tight">
+                          NEW
+                        </span>
+                      )}
                     </div>
 
                     {/* 이름 */}
@@ -250,7 +263,7 @@ export default function MembersPanel({ open, onClose, project, onRefresh }: Prop
                             <span className="font-semibold text-gray-900 text-sm">
                               {member.name}
                             </span>
-                            {member.isMe && (
+                            {member.id === myMemberId && (
                               <span className="flex items-center gap-0.5 text-xs text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-full font-medium">
                                 <Crown className="w-2.5 h-2.5" />
                                 나
@@ -283,9 +296,9 @@ export default function MembersPanel({ open, onClose, project, onRefresh }: Prop
                           className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors"
                           title="색상 변경"
                         >
-                          <span className="text-xs">✏️</span>
+                          <Pencil className="w-3.5 h-3.5" />
                         </button>
-                        {!member.isMe && (
+                        {member.id !== myMemberId && (
                           <button
                             onClick={() => handleRemove(member.id)}
                             className="w-7 h-7 rounded-lg bg-gray-100 hover:bg-red-50 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors"

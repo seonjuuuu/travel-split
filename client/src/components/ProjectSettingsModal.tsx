@@ -82,7 +82,7 @@ export default function ProjectSettingsModal({ open, onClose, project, onRefresh
           </DialogHeader>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4 min-w-0">
           <div className="space-y-1.5">
             <Label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
               <Plane className="w-3.5 h-3.5 text-indigo-500" />

@@ -16,6 +16,9 @@ import {
   Lock,
   Copy,
   Check,
+  PartyPopper,
+  StickyNote,
+  Wallet,
 } from "lucide-react";
 import { CATEGORY_CONFIG, formatAmount, formatDate } from "@/lib/types";
 import {
@@ -395,7 +398,10 @@ export default function SharedProjectPage() {
 
             {settlement.transfers.length === 0 && (
               <div className="bg-emerald-50 rounded-2xl p-5 text-center">
-                <p className="text-emerald-700 font-semibold text-sm">🎉 모두 정산 완료!</p>
+                <p className="flex items-center justify-center gap-1.5 text-emerald-700 font-semibold text-sm">
+                  <PartyPopper className="w-4 h-4" />
+                  모두 정산 완료!
+                </p>
                 <p className="text-emerald-600 text-xs mt-1">추가 이체가 필요 없어요</p>
               </div>
             )}
@@ -517,22 +523,25 @@ function renderExpenseCard(
         onClick={() => setExpandedId(isExpanded ? null : expense.id)}
       >
         <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-lg"
+          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
           style={{ backgroundColor: catConfig?.bg || "#f3f4f6" }}
         >
-          {catConfig?.icon || "💰"}
+          {(() => {
+            const Icon = catConfig?.icon || Wallet;
+            return <Icon className="w-4.5 h-4.5" style={{ color: catConfig?.textColor }} />;
+          })()}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-0.5">
-            <span className="font-semibold text-gray-900 text-sm truncate">{expense.title}</span>
             <span
               className="text-xs px-2 py-0.5 rounded-full font-medium shrink-0"
               style={{ backgroundColor: catConfig?.bg, color: catConfig?.textColor }}
             >
               {expense.category}
             </span>
+            <span className="font-semibold text-gray-900 text-sm truncate">{expense.title}</span>
           </div>
-          <div className="flex items-center gap-2 text-xs text-gray-400">
+          <div className="flex items-center gap-2 text-xs text-gray-400 mt-1.5">
             {isSharedCostCard ? (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-semibold">
                 공동경비
@@ -589,7 +598,10 @@ function renderExpenseCard(
             )}
           </div>
           {expense.note && (
-            <p className="text-xs text-gray-500 mt-3 bg-gray-50 rounded-lg px-3 py-2">📝 {expense.note}</p>
+            <p className="flex items-start gap-1.5 text-xs text-gray-500 mt-3 bg-gray-50 rounded-lg px-3 py-2">
+              <StickyNote className="w-3.5 h-3.5 shrink-0 mt-0.5 text-gray-400" />
+              {expense.note}
+            </p>
           )}
         </div>
       )}

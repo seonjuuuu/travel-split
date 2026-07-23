@@ -46,7 +46,8 @@ export const travelProjects = pgTable("travel_projects", {
   startDate: varchar("startDate", { length: 10 }).notNull(), // YYYY-MM-DD
   endDate: varchar("endDate", { length: 10 }).notNull(),   // YYYY-MM-DD
   myName: varchar("myName", { length: 50 }).notNull().default("나"),
-  shareToken: varchar("shareToken", { length: 32 }), // 공유 링크 토큰 (null이면 비활성)
+  shareToken: varchar("shareToken", { length: 32 }), // 읽기 전용 공유 링크 토큰 (null이면 비활성)
+  editToken: varchar("editToken", { length: 32 }), // 가입해서 공동 편집하는 초대 링크 토큰 (null이면 비활성)
   createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updatedAt", { withTimezone: true }).defaultNow().notNull(),
 });
@@ -61,6 +62,8 @@ export const projectMembers = pgTable("project_members", {
   name: varchar("name", { length: 50 }).notNull(),
   isMe: boolean("isMe").default(false).notNull(),
   color: varchar("color", { length: 20 }).notNull().default("#6366f1"),
+  /** 이 멤버로 로그인해서 공동 편집할 수 있는 Supabase 계정. null이면 계정 없는 이름표 멤버. */
+  profileId: uuid("profileId"),
   createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -79,6 +82,7 @@ export const expenses = pgTable("expenses", {
   date: varchar("date", { length: 10 }).notNull().default(""), // YYYY-MM-DD (사전결제는 빈 문자열)
   isPreTrip: boolean("isPreTrip").default(false).notNull(),
   isSharedCost: boolean("isSharedCost").default(false).notNull(), // 공동경비 - 정산 제외
+  isPersonal: boolean("isPersonal").default(false).notNull(), // 개인경비 - 정산 제외, 결제자 본인 지출로만 기록
   note: text("note"),
   createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updatedAt", { withTimezone: true }).defaultNow().notNull(),

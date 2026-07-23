@@ -1,19 +1,27 @@
+import { TRPCError } from "@trpc/server";
 import { nanoid } from "nanoid";
 import { z } from "zod";
+import type { DbExpense } from "../drizzle/schema";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import {
+  claimMember,
   createExpense,
   createMember,
   createProject,
   deleteExpense,
   deleteMember,
   deleteProject,
+  getExpenseById,
   getExpensesByProjectId,
+  getMemberById,
   getMembersByProjectId,
-  getProjectById,
+  getProjectAccess,
+  getProjectByEditToken,
   getProjectByShareToken,
-  getProjectsByUserId,
+  getProjectsForUser,
+  getUnclaimedMembers,
+  setProjectEditToken,
   setProjectShareToken,
   updateExpense,
   updateMember,
@@ -21,6 +29,34 @@ import {
 } from "./db";
 
 const CategoryEnum = z.enum(["식비", "교통", "숙박", "관광", "쇼핑", "기타"]);
+const MEMBER_COLORS = [
+  "#6366f1", "#ef4444", "#f97316", "#eab308", "#22c55e", "#14b8a6",
+  "#3b82f6", "#8b5cf6", "#ec4899", "#06b6d4", "#84cc16", "#f43f5e",
+];
+
+function pickNextColor(usedColors: string[]): string {
+  const available = MEMBER_COLORS.filter((c) => !usedColors.includes(c));
+  return available.length > 0 ? available[0] : MEMBER_COLORS[usedColors.length % MEMBER_COLORS.length];
+}
+
+// 소유자든 초대받은 협업자든 동일한 규칙으로 접근 권한을 확인한다.
+async function assertProjectAccess(projectId: string, userId: string) {
+  const access = await getProjectAccess(projectId, userId);
+  if (!access) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "이 프로젝트에 접근할 권한이 없습니다" });
+  }
+  return access;
+}
+
+function mapExpenseRow(e: DbExpense) {
+  return {
+    ...e,
+    participantIds: JSON.parse(e.participantIds || "[]") as string[],
+    isPreTrip: Boolean(e.isPreTrip),
+    isSharedCost: Boolean(e.isSharedCost),
+    isPersonal: Boolean(e.isPersonal),
+  };
+}
 
 export const appRouter = router({
   system: systemRouter,
@@ -35,25 +71,33 @@ export const appRouter = router({
   // ── 여행 프로젝트 ─────────────────────────────────────────────
   projects: router({
     list: protectedProcedure.query(async ({ ctx }) => {
-      return getProjectsByUserId(ctx.user.id);
+      const rows = await getProjectsForUser(ctx.user.id);
+      return Promise.all(
+        rows.map(async (project) => {
+          const [members, expenseRows] = await Promise.all([
+            getMembersByProjectId(project.id),
+            getExpensesByProjectId(project.id),
+          ]);
+          const totalAmount = expenseRows.reduce((s, e) => s + e.amount, 0);
+          return { ...project, members, totalAmount };
+        })
+      );
     }),
 
     get: protectedProcedure
       .input(z.object({ id: z.string() }))
       .query(async ({ ctx, input }) => {
-        const project = await getProjectById(input.id, ctx.user.id);
-        if (!project) return null;
+        const access = await getProjectAccess(input.id, ctx.user.id);
+        if (!access) return null;
         const members = await getMembersByProjectId(input.id);
         const expenseRows = await getExpensesByProjectId(input.id);
         return {
-          ...project,
+          ...access.project,
           members,
-          expenses: expenseRows.map((e) => ({
-            ...e,
-            participantIds: JSON.parse(e.participantIds || "[]") as string[],
-            isPreTrip: Boolean(e.isPreTrip),
-            isSharedCost: Boolean(e.isSharedCost),
-          })),
+          // 다른 사람의 개인경비는 응답에서 아예 제외 - 클라이언트가 숨기는 게 아니라 서버가 안 보낸다.
+          expenses: expenseRows
+            .filter((e) => !Boolean(e.isPersonal) || e.payerId === access.memberId)
+            .map(mapExpenseRow),
         };
       }),
 
@@ -85,10 +129,11 @@ export const appRouter = router({
           name: input.myName,
           isMe: true,
           color: "#6366f1",
+          profileId: ctx.user.id,
         });
         return {
           ...project,
-          members: [{ id: memberId, name: input.myName, isMe: true, color: "#6366f1", projectId: id, createdAt: new Date() }],
+          members: [{ id: memberId, name: input.myName, isMe: true, color: "#6366f1", projectId: id, profileId: ctx.user.id, createdAt: new Date() }],
           expenses: [],
         };
       }),
@@ -105,6 +150,7 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ ctx, input }) => {
+        await assertProjectAccess(input.id, ctx.user.id);
         const { id, ...data } = input;
         await updateProject(id, ctx.user.id, data);
         return { success: true };
@@ -113,21 +159,20 @@ export const appRouter = router({
     delete: protectedProcedure
       .input(z.object({ id: z.string() }))
       .mutation(async ({ ctx, input }) => {
+        // 프로젝트 삭제는 소유자만 (updateProject/deleteProject 자체가 userId 일치 여부로 걸러줌)
         await deleteProject(input.id, ctx.user.id);
         return { success: true };
       }),
 
-    // 공유 링크 토큰 생성 (ON)
+    // 읽기 전용 공유 링크 생성/해제 (소유자 전용)
     enableShare: protectedProcedure
       .input(z.object({ id: z.string() }))
       .mutation(async ({ ctx, input }) => {
-        // 16바이트 랜덤 토큰 생성
         const token = nanoid(24);
         await setProjectShareToken(input.id, ctx.user.id, token);
         return { token };
       }),
 
-    // 공유 링크 토큰 삭제 (OFF)
     disableShare: protectedProcedure
       .input(z.object({ id: z.string() }))
       .mutation(async ({ ctx, input }) => {
@@ -135,7 +180,7 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    // 공유 링크로 여행 조회 (로그인 불필요)
+    // 공유 링크로 여행 조회 (로그인 불필요, 개인경비는 아예 제외)
     getByToken: publicProcedure
       .input(z.object({ token: z.string() }))
       .query(async ({ input }) => {
@@ -146,13 +191,83 @@ export const appRouter = router({
         return {
           ...project,
           members,
-          expenses: expenseRows.map((e) => ({
-            ...e,
-            participantIds: JSON.parse(e.participantIds || "[]") as string[],
-            isPreTrip: Boolean(e.isPreTrip),
-            isSharedCost: Boolean(e.isSharedCost),
-          })),
+          expenses: expenseRows
+            .filter((e) => !Boolean(e.isPersonal))
+            .map(mapExpenseRow),
         };
+      }),
+
+    // 가입해서 공동 편집하는 초대 링크 생성/해제 (소유자 전용)
+    enableEditInvite: protectedProcedure
+      .input(z.object({ id: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const token = nanoid(24);
+        await setProjectEditToken(input.id, ctx.user.id, token);
+        return { token };
+      }),
+
+    disableEditInvite: protectedProcedure
+      .input(z.object({ id: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        await setProjectEditToken(input.id, ctx.user.id, null);
+        return { success: true };
+      }),
+
+    // 초대 링크 미리보기 - 로그인은 필요하지만 아직 이 프로젝트 멤버는 아닐 수 있음
+    getJoinPreview: protectedProcedure
+      .input(z.object({ editToken: z.string() }))
+      .query(async ({ input }) => {
+        const project = await getProjectByEditToken(input.editToken);
+        if (!project) return null;
+        const unclaimed = await getUnclaimedMembers(project.id);
+        return {
+          project: { id: project.id, name: project.name, destination: project.destination },
+          members: unclaimed.map((m) => ({ id: m.id, name: m.name, color: m.color })),
+        };
+      }),
+
+    // 초대 링크로 실제 참여 - 기존 이름표를 본인 계정과 연결하거나, 새 멤버로 참여
+    joinByEditToken: protectedProcedure
+      .input(
+        z.object({
+          editToken: z.string(),
+          memberId: z.string().optional(),
+          newMemberName: z.string().min(1).optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const project = await getProjectByEditToken(input.editToken);
+        if (!project) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "유효하지 않은 초대 링크입니다" });
+        }
+
+        // 이미 참여 중이면 그대로 프로젝트로 안내
+        const existingAccess = await getProjectAccess(project.id, ctx.user.id);
+        if (existingAccess) return { projectId: project.id };
+
+        if (input.memberId) {
+          const unclaimed = await getUnclaimedMembers(project.id);
+          const target = unclaimed.find((m) => m.id === input.memberId);
+          if (!target) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "선택한 멤버를 찾을 수 없습니다" });
+          }
+          await claimMember(input.memberId, ctx.user.id);
+        } else if (input.newMemberName) {
+          const existingMembers = await getMembersByProjectId(project.id);
+          const color = pickNextColor(existingMembers.map((m) => m.color));
+          await createMember({
+            id: nanoid(),
+            projectId: project.id,
+            name: input.newMemberName,
+            isMe: false,
+            color,
+            profileId: ctx.user.id,
+          });
+        } else {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "참여할 멤버를 선택하거나 이름을 입력해주세요" });
+        }
+
+        return { projectId: project.id };
       }),
   }),
 
@@ -166,16 +281,13 @@ export const appRouter = router({
           color: z.string().optional(),
         })
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        await assertProjectAccess(input.projectId, ctx.user.id);
         const id = nanoid();
-        // 색상 자동 배정: 클라이언트가 전달하지 않으면 기존 멤버와 겹치지 않는 색상 선택
         let color = input.color;
         if (!color) {
-          const COLORS = ["#6366f1","#ef4444","#f97316","#eab308","#22c55e","#14b8a6","#3b82f6","#8b5cf6","#ec4899","#06b6d4","#84cc16","#f43f5e"];
           const existingMembers = await getMembersByProjectId(input.projectId);
-          const usedColors = existingMembers.map((m: { color: string }) => m.color);
-          const available = COLORS.filter(c => !usedColors.includes(c));
-          color = available.length > 0 ? available[0] : COLORS[usedColors.length % COLORS.length];
+          color = pickNextColor(existingMembers.map((m) => m.color));
         }
         return createMember({ id, projectId: input.projectId, name: input.name, isMe: false, color });
       }),
@@ -188,7 +300,10 @@ export const appRouter = router({
           color: z.string().optional(),
         })
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        const member = await getMemberById(input.id);
+        if (!member) throw new TRPCError({ code: "NOT_FOUND", message: "멤버를 찾을 수 없습니다" });
+        await assertProjectAccess(member.projectId, ctx.user.id);
         const { id, ...data } = input;
         await updateMember(id, data);
         return { success: true };
@@ -196,7 +311,10 @@ export const appRouter = router({
 
     delete: protectedProcedure
       .input(z.object({ id: z.string() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        const member = await getMemberById(input.id);
+        if (!member) throw new TRPCError({ code: "NOT_FOUND", message: "멤버를 찾을 수 없습니다" });
+        await assertProjectAccess(member.projectId, ctx.user.id);
         await deleteMember(input.id);
         return { success: true };
       }),
@@ -216,10 +334,12 @@ export const appRouter = router({
           date: z.string().default(""),
           isPreTrip: z.boolean().default(false),
           isSharedCost: z.boolean().default(false),
+          isPersonal: z.boolean().default(false),
           note: z.string().optional(),
         })
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        await assertProjectAccess(input.projectId, ctx.user.id);
         const id = nanoid();
         return createExpense({
           id,
@@ -232,6 +352,7 @@ export const appRouter = router({
           date: input.date,
           isPreTrip: input.isPreTrip,
           isSharedCost: input.isSharedCost,
+          isPersonal: input.isPersonal,
           note: input.note ?? null,
         });
       }),
@@ -248,10 +369,14 @@ export const appRouter = router({
           date: z.string().optional(),
           isPreTrip: z.boolean().optional(),
           isSharedCost: z.boolean().optional(),
+          isPersonal: z.boolean().optional(),
           note: z.string().optional(),
         })
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        const expense = await getExpenseById(input.id);
+        if (!expense) throw new TRPCError({ code: "NOT_FOUND", message: "지출을 찾을 수 없습니다" });
+        await assertProjectAccess(expense.projectId, ctx.user.id);
         const { id, participantIds, ...rest } = input;
         await updateExpense(id, {
           ...rest,
@@ -264,7 +389,10 @@ export const appRouter = router({
 
     delete: protectedProcedure
       .input(z.object({ id: z.string() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        const expense = await getExpenseById(input.id);
+        if (!expense) throw new TRPCError({ code: "NOT_FOUND", message: "지출을 찾을 수 없습니다" });
+        await assertProjectAccess(expense.projectId, ctx.user.id);
         await deleteExpense(input.id);
         return { success: true };
       }),

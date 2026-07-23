@@ -8,6 +8,7 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
+import JoinProjectPage from "./pages/JoinProjectPage";
 import Login from "./pages/Login";
 import ProjectPage from "./pages/ProjectPage";
 import SharedProjectPage from "./pages/SharedProjectPage";
@@ -17,6 +18,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/login" component={Login} />
+      <Route path="/join/:token" component={JoinProjectPage} />
       <Route path="/project/:id" component={ProjectPage} />
       <Route path="/share/:token" component={SharedProjectPage} />
       <Route path="/404" component={NotFound} />

@@ -1,17 +1,20 @@
 // 여행 프로젝트 상세 페이지 - tRPC 기반
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation, useParams } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Plus, Users, BarChart3, Receipt, Calculator,
-  Settings, MapPin, CalendarDays, Grid3X3, Plane,
-  Share2, Copy, Check, X, Link,
+  Settings, MapPin, CalendarDays, Grid3X3, Plane, User, UserPlus,
+  Share2, Copy, Check, X, Link, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useDragScroll } from "@/hooks/useDragScroll";
 import { trpc } from "@/lib/trpc";
 import { getDatesInRange, formatDate, formatDayOfWeek } from "@/lib/types";
 import ExpenseList from "@/components/ExpenseList";
 import AddExpenseModal from "@/components/AddExpenseModal";
+import InviteModal from "@/components/InviteModal";
 import MembersPanel from "@/components/MembersPanel";
 import SettlementPanel from "@/components/SettlementPanel";
 import ChartPanel from "@/components/ChartPanel";
@@ -29,17 +32,68 @@ export default function ProjectPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [dateViewMode, setDateViewMode] = useState<DateViewMode>("pills");
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareToken, setShareToken] = useState<string | null>(null);
   const [shareCopied, setShareCopied] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const {
+    ref: datePillsRef,
+    canScrollLeft: dateCanScrollLeft,
+    canScrollRight: dateCanScrollRight,
+    scrollLeft: scrollDatesLeft,
+    scrollRight: scrollDatesRight,
+  } = useDragScroll<HTMLDivElement>();
+  const { ref: memberPillsRef } = useDragScroll<HTMLDivElement>();
 
   const { data: project, isLoading, refetch } = trpc.projects.get.useQuery(
     { id: params.id ?? "" },
     { enabled: !!params.id }
   );
+
+  const { user } = useAuth();
+  const [newMemberIds, setNewMemberIds] = useState<Set<string>>(new Set());
+
+  // 새로 들어온 공동 편집자 감지 - 접속/새로고침 시점에만 확인 (실시간 아님)
+  useEffect(() => {
+    if (!project) return;
+    const seenKey = `seenMembers:${project.id}`;
+    const pendingKey = `pendingNewMembers:${project.id}`;
+    const stored = localStorage.getItem(seenKey);
+    const collaborators = project.members.filter((m) => m.profileId);
+
+    const pendingStored = localStorage.getItem(pendingKey);
+    const pendingIds = new Set(pendingStored ? (JSON.parse(pendingStored) as string[]) : []);
+
+    if (stored !== null) {
+      const seenIds = new Set(JSON.parse(stored) as string[]);
+      const joined = collaborators.filter((m) => !seenIds.has(m.id) && m.profileId !== user?.id);
+      joined.forEach((m) => {
+        toast.success(`${m.name}님이 여행에 참여했어요!`);
+        pendingIds.add(m.id);
+      });
+    }
+
+    // 이미 삭제된 멤버의 뱃지는 제거
+    const collaboratorIds = new Set(collaborators.map((m) => m.id));
+    Array.from(pendingIds).forEach((id) => {
+      if (!collaboratorIds.has(id)) pendingIds.delete(id);
+    });
+
+    localStorage.setItem(seenKey, JSON.stringify(collaborators.map((m) => m.id)));
+    localStorage.setItem(pendingKey, JSON.stringify(Array.from(pendingIds)));
+    setNewMemberIds(pendingIds);
+  }, [project?.id, project?.members, user?.id]);
+
+  const handleOpenMembers = () => {
+    setShowMembers(true);
+    if (project) {
+      localStorage.setItem(`pendingNewMembers:${project.id}`, JSON.stringify([]));
+      setNewMemberIds(new Set());
+    }
+  };
 
   const utils = trpc.useUtils();
 
@@ -84,7 +138,7 @@ export default function ProjectPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#FAFAF8] flex items-center justify-center">
+      <div className="min-h-screen bg-[#E4E6DF] flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -92,7 +146,7 @@ export default function ProjectPage() {
 
   if (!project) {
     return (
-      <div className="min-h-screen bg-[#FAFAF8] flex items-center justify-center">
+      <div className="min-h-screen bg-[#E4E6DF] flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-500 mb-4">프로젝트를 찾을 수 없습니다.</p>
           <Button onClick={() => navigate("/")} variant="outline">홈으로 돌아가기</Button>
@@ -102,11 +156,18 @@ export default function ProjectPage() {
   }
 
   const travelDates = getDatesInRange(project.startDate, project.endDate);
-  const preTripExpenses = project.expenses.filter((e) => Boolean(e.isPreTrip) === true);
-  const tripExpenses = project.expenses.filter((e) => Boolean(e.isPreTrip) !== true);
+  const personalExpenses = project.expenses.filter((e) => Boolean(e.isPersonal) === true);
+  const preTripExpenses = project.expenses.filter(
+    (e) => Boolean(e.isPreTrip) === true && Boolean(e.isPersonal) !== true
+  );
+  const tripExpenses = project.expenses.filter(
+    (e) => Boolean(e.isPreTrip) !== true && Boolean(e.isPersonal) !== true
+  );
   // 날짜 필터 적용
   const dateFilteredExpenses = selectedDate === "pre-trip"
     ? preTripExpenses
+    : selectedDate === "personal"
+    ? personalExpenses
     : selectedDate
     ? tripExpenses.filter((e) => e.date === selectedDate)
     : project.expenses;
@@ -138,79 +199,124 @@ export default function ProjectPage() {
   const shareUrl = currentShareToken ? `${window.location.origin}/share/${currentShareToken}` : "";
 
   return (
-    <div className="min-h-screen bg-[#FAFAF8]">
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-50">
+    <div className="min-h-screen bg-[#E4E6DF]">
+      <header className="bg-[#F6F7F2] border-b border-[#12222D]/10 sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
-          <button onClick={() => navigate("/")} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors">
+          <button onClick={() => navigate("/")} className="w-8 h-8 rounded-sm flex items-center justify-center hover:bg-[#EDEFE7] transition-colors">
             <ArrowLeft className="w-4 h-4 text-gray-600" />
           </button>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 tix-mono">
               <MapPin className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-              <span className="text-xs text-indigo-600 font-medium truncate">{project.destination}</span>
+              <span className="text-xs text-indigo-600 font-bold truncate">{project.destination}</span>
             </div>
-            <h1 className="font-bold text-gray-900 text-base leading-tight truncate">{project.name}</h1>
+            <h1 className="font-bold text-[#12222D] text-base leading-tight truncate">{project.name}</h1>
           </div>
           <div className="flex items-center gap-1.5">
-            <button onClick={() => setShowMembers(true)} className="flex items-center gap-1 px-3 h-8 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors text-xs font-medium text-gray-600">
+            <button onClick={handleOpenMembers} className="relative flex items-center gap-1 px-3 h-8 rounded-sm bg-[#EDEFE7] hover:bg-[#E4E6DF] transition-colors text-xs font-medium text-[#5B6B72]">
               <Users className="w-3.5 h-3.5" />{project.members.length}명
+              {newMemberIds.size > 0 && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-[#F6F7F2]" />
+              )}
             </button>
-            {/* 공유 버튼 */}
+            {/* 친구 초대 (공동 편집) */}
+            <button
+              onClick={() => setShowInvite(true)}
+              className={`w-8 h-8 rounded-sm flex items-center justify-center transition-colors ${project.editToken ? "bg-indigo-100 text-indigo-600 hover:bg-indigo-200" : "hover:bg-[#EDEFE7] text-[#5B6B72]"}`}
+              title="친구 초대"
+            >
+              <UserPlus className="w-4 h-4" />
+            </button>
+            {/* 공유 버튼 (읽기 전용) */}
             <button
               onClick={handleShare}
               disabled={enableShareMutation.isPending}
-              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${project.shareToken ? "bg-indigo-100 text-indigo-600 hover:bg-indigo-200" : "hover:bg-gray-100 text-gray-500"}`}
-              title="친구에게 공유"
+              className={`w-8 h-8 rounded-sm flex items-center justify-center transition-colors ${project.shareToken ? "bg-indigo-100 text-indigo-600 hover:bg-indigo-200" : "hover:bg-[#EDEFE7] text-[#5B6B72]"}`}
+              title="정산 결과 공유 (읽기 전용)"
             >
               <Share2 className="w-4 h-4" />
             </button>
-            <button onClick={() => setShowSettings(true)} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors">
-              <Settings className="w-4 h-4 text-gray-500" />
+            <button onClick={() => setShowSettings(true)} className="w-8 h-8 rounded-sm flex items-center justify-center hover:bg-[#EDEFE7] transition-colors">
+              <Settings className="w-4 h-4 text-[#5B6B72]" />
             </button>
           </div>
         </div>
       </header>
 
-      <div className="bg-white border-b border-gray-100">
+      <div className="bg-[#F6F7F2] border-b border-[#12222D]/10">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-medium text-gray-400">
-              {selectedDate === "pre-trip" ? "✈️ 사전 결제 내역" : selectedDate ? `📅 ${formatDate(selectedDate)} 선택됨` : "전체 날짜"}
+            <p className="text-xs font-medium text-[#5B6B72]">
+              {selectedDate === "pre-trip"
+                ? "사전 결제 내역"
+                : selectedDate === "personal"
+                ? "개인 경비 내역"
+                : selectedDate
+                ? `${formatDate(selectedDate)} 선택됨`
+                : "전체 날짜"}
             </p>
-            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
-              <button onClick={() => setDateViewMode("pills")} className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${dateViewMode === "pills" ? "bg-white text-indigo-600 shadow-sm" : "text-gray-400 hover:text-gray-600"}`}>
+            <div className="flex items-center gap-1 bg-[#EDEFE7] rounded-sm p-0.5">
+              <button onClick={() => setDateViewMode("pills")} className={`flex items-center gap-1 px-2.5 py-1 rounded-sm text-xs font-medium transition-all ${dateViewMode === "pills" ? "bg-[#F6F7F2] text-indigo-600 shadow-sm" : "text-[#5B6B72] hover:text-[#12222D]"}`}>
                 <Grid3X3 className="w-3 h-3" />버튼
               </button>
-              <button onClick={() => setDateViewMode("calendar")} className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${dateViewMode === "calendar" ? "bg-white text-indigo-600 shadow-sm" : "text-gray-400 hover:text-gray-600"}`}>
+              <button onClick={() => setDateViewMode("calendar")} className={`flex items-center gap-1 px-2.5 py-1 rounded-sm text-xs font-medium transition-all ${dateViewMode === "calendar" ? "bg-[#F6F7F2] text-indigo-600 shadow-sm" : "text-[#5B6B72] hover:text-[#12222D]"}`}>
                 <CalendarDays className="w-3 h-3" />달력
               </button>
             </div>
           </div>
           {dateViewMode === "pills" && (
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-              <button onClick={() => setSelectedDate(null)} className={`shrink-0 flex flex-col items-center gap-0.5 px-3 py-2 rounded-2xl transition-all ${selectedDate === null ? "bg-indigo-600 text-white shadow-sm" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}>
-                <span className="text-xs font-bold">전체</span>
-                <span className="text-[10px] opacity-70">{project.expenses.length}건</span>
-              </button>
-              <button onClick={() => setSelectedDate(selectedDate === "pre-trip" ? null : "pre-trip")} className={`shrink-0 flex flex-col items-center gap-0.5 px-3 py-2 rounded-2xl transition-all ${selectedDate === "pre-trip" ? "bg-amber-500 text-white shadow-sm" : "bg-amber-100 text-amber-700 hover:bg-amber-200"}`}>
-                <Plane className="w-3 h-3" />
-                <span className="text-xs font-bold">사전</span>
-                <span className="text-[10px] opacity-70">{preTripExpenses.length}건</span>
-              </button>
-              {travelDates.map((date, idx) => {
-                const dayExpenses = tripExpenses.filter((e) => e.date === date);
-                const isSelected = selectedDate === date;
-                const isToday = date === new Date().toISOString().split("T")[0];
-                return (
-                  <button key={date} onClick={() => setSelectedDate(isSelected ? null : date)}
-                    className={`shrink-0 flex flex-col items-center gap-0.5 w-14 py-2 rounded-2xl transition-all ${isSelected ? "bg-indigo-600 text-white shadow-sm" : isToday ? "bg-indigo-50 text-indigo-600 border border-indigo-200" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}>
-                    <span className="text-[10px] font-medium opacity-70">{formatDayOfWeek(date)}</span>
-                    <span className="text-sm font-bold leading-none">{new Date(date).getDate()}</span>
-                    <span className="text-[10px] opacity-60">{idx + 1}일차</span>
-                    {dayExpenses.length > 0 && <div className={`w-1 h-1 rounded-full mt-0.5 ${isSelected ? "bg-white" : "bg-indigo-400"}`} />}
-                  </button>
-                );
-              })}
+            <div className="relative">
+              {dateCanScrollLeft && (
+                <button
+                  onClick={scrollDatesLeft}
+                  className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-6 h-6 rounded-full bg-[#F6F7F2] border border-[#12222D]/12 shadow-sm flex items-center justify-center text-[#5B6B72] hover:text-[#12222D]"
+                  aria-label="이전 날짜 보기"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </button>
+              )}
+              <div
+                ref={datePillsRef}
+                className={`flex gap-2 overflow-x-auto pb-1 scrollbar-hide cursor-grab active:cursor-grabbing ${dateCanScrollLeft ? "pl-7" : ""} ${dateCanScrollRight ? "pr-7" : ""}`}
+              >
+                <button onClick={() => setSelectedDate(null)} className={`tix-mono shrink-0 flex flex-col items-center gap-0.5 px-3 py-2 rounded-sm transition-all ${selectedDate === null ? "bg-indigo-600 text-white shadow-sm" : "bg-[#EDEFE7] text-[#5B6B72] hover:bg-[#E4E6DF]"}`}>
+                  <span className="text-xs font-bold">전체</span>
+                  <span className="text-[10px] opacity-70">{project.expenses.length}건</span>
+                </button>
+                <button onClick={() => setSelectedDate(selectedDate === "pre-trip" ? null : "pre-trip")} className={`tix-mono shrink-0 flex flex-col items-center gap-0.5 px-3 py-2 rounded-sm transition-all ${selectedDate === "pre-trip" ? "bg-amber-500 text-white shadow-sm" : "bg-amber-100 text-amber-700 hover:bg-amber-200"}`}>
+                  <Plane className="w-3 h-3" />
+                  <span className="text-xs font-bold">사전</span>
+                  <span className="text-[10px] opacity-70">{preTripExpenses.length}건</span>
+                </button>
+                <button onClick={() => setSelectedDate(selectedDate === "personal" ? null : "personal")} className={`tix-mono shrink-0 flex flex-col items-center gap-0.5 px-3 py-2 rounded-sm transition-all ${selectedDate === "personal" ? "bg-violet-500 text-white shadow-sm" : "bg-violet-100 text-violet-700 hover:bg-violet-200"}`}>
+                  <User className="w-3 h-3" />
+                  <span className="text-xs font-bold">개인</span>
+                  <span className="text-[10px] opacity-70">{personalExpenses.length}건</span>
+                </button>
+                {travelDates.map((date, idx) => {
+                  const dayExpenses = tripExpenses.filter((e) => e.date === date);
+                  const isSelected = selectedDate === date;
+                  const isToday = date === new Date().toISOString().split("T")[0];
+                  return (
+                    <button key={date} onClick={() => setSelectedDate(isSelected ? null : date)}
+                      className={`tix-mono shrink-0 flex flex-col items-center gap-0.5 w-14 py-2 rounded-sm transition-all ${isSelected ? "bg-indigo-600 text-white shadow-sm" : isToday ? "bg-indigo-50 text-indigo-600 border border-indigo-200" : "bg-[#EDEFE7] text-[#5B6B72] hover:bg-[#E4E6DF]"}`}>
+                      <span className="text-[10px] font-medium opacity-70">{formatDayOfWeek(date)}</span>
+                      <span className="text-sm font-bold leading-none">{new Date(date).getDate()}</span>
+                      <span className="text-[10px] opacity-60">{idx + 1}일차</span>
+                      {dayExpenses.length > 0 && <div className={`w-1 h-1 rounded-full mt-0.5 ${isSelected ? "bg-white" : "bg-indigo-400"}`} />}
+                    </button>
+                  );
+                })}
+              </div>
+              {dateCanScrollRight && (
+                <button
+                  onClick={scrollDatesRight}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-6 h-6 rounded-full bg-[#F6F7F2] border border-[#12222D]/12 shadow-sm flex items-center justify-center text-[#5B6B72] hover:text-[#12222D]"
+                  aria-label="다음 날짜 보기"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           )}
           {dateViewMode === "calendar" && (
@@ -221,26 +327,26 @@ export default function ProjectPage() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4">
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-white rounded-2xl p-4 border border-gray-100">
-            <p className="text-xs text-gray-400 mb-1">총 지출</p>
-            <p className="text-lg font-bold text-gray-900">{totalExpense.toLocaleString()}<span className="text-xs font-normal text-gray-400 ml-0.5">원</span></p>
+          <div className="bg-[#F6F7F2] rounded-sm p-4 border border-[#12222D]/12">
+            <p className="text-[10px] tracking-[0.1em] uppercase text-[#5B6B72] mb-1.5">총 지출</p>
+            <p className="tix-mono text-lg font-bold text-[#12222D]">{totalExpense.toLocaleString()}<span className="text-xs font-normal text-[#5B6B72] ml-0.5">원</span></p>
           </div>
-          <div className="bg-white rounded-2xl p-4 border border-gray-100">
-            <p className="text-xs text-gray-400 mb-1">지출 건수</p>
-            <p className="text-lg font-bold text-gray-900">{project.expenses.length}<span className="text-xs font-normal text-gray-400 ml-0.5">건</span></p>
+          <div className="bg-[#F6F7F2] rounded-sm p-4 border border-[#12222D]/12">
+            <p className="text-[10px] tracking-[0.1em] uppercase text-[#5B6B72] mb-1.5">지출 건수</p>
+            <p className="tix-mono text-lg font-bold text-[#12222D]">{project.expenses.length}<span className="text-xs font-normal text-[#5B6B72] ml-0.5">건</span></p>
           </div>
-          <div className="bg-white rounded-2xl p-4 border border-gray-100">
-            <p className="text-xs text-gray-400 mb-1">인당 평균</p>
-            <p className="text-lg font-bold text-gray-900">{project.members.length > 0 ? Math.round(totalExpense / project.members.length).toLocaleString() : 0}<span className="text-xs font-normal text-gray-400 ml-0.5">원</span></p>
+          <div className="bg-[#F6F7F2] rounded-sm p-4 border border-[#12222D]/12">
+            <p className="text-[10px] tracking-[0.1em] uppercase text-[#5B6B72] mb-1.5">인당 평균</p>
+            <p className="tix-mono text-lg font-bold text-[#12222D]">{project.members.length > 0 ? Math.round(totalExpense / project.members.length).toLocaleString() : 0}<span className="text-xs font-normal text-[#5B6B72] ml-0.5">원</span></p>
           </div>
         </div>
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
-        <div className="flex gap-1 bg-gray-100 rounded-2xl p-1">
+        <div className="flex gap-1 bg-[#EDEFE7] rounded-sm p-1">
           {tabs.map((tab) => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-medium transition-all ${activeTab === tab.id ? "bg-white text-indigo-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-sm text-sm font-medium transition-all ${activeTab === tab.id ? "bg-[#F6F7F2] text-indigo-600 shadow-sm" : "text-[#5B6B72] hover:text-[#12222D]"}`}>
               {tab.icon}<span className="hidden sm:inline">{tab.label}</span>
             </button>
           ))}
@@ -251,7 +357,7 @@ export default function ProjectPage() {
         {/* 지출 탭 - 멤버 필터 */}
         {activeTab === "expenses" && (
           <div className="mb-4">
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            <div ref={memberPillsRef} className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide cursor-grab active:cursor-grabbing">
               <span className="text-xs text-gray-400 shrink-0 font-medium">멤버</span>
               {/* 전체 버튼 */}
               <button
@@ -266,8 +372,10 @@ export default function ProjectPage() {
               </button>
               {/* 멤버별 버튼 */}
               {project.members.map((member) => {
-                // 공동경비 제외 - 정산 대상 결제액만 표시
-                const memberExpenses = project.expenses.filter((e) => !Boolean(e.isSharedCost) && e.payerId === member.id);
+                // 공동경비/개인경비 제외 - 정산 대상 결제액만 표시
+                const memberExpenses = project.expenses.filter(
+                  (e) => !Boolean(e.isSharedCost) && !Boolean(e.isPersonal) && e.payerId === member.id
+                );
                 const memberTotal = memberExpenses.reduce((s, e) => s + e.amount, 0);
                 const isSelected = selectedMemberId === member.id;
                 return (
@@ -290,7 +398,7 @@ export default function ProjectPage() {
                     </span>
                     <span>{member.name}</span>
                     {memberTotal > 0 && (
-                      <span className={`${isSelected ? "opacity-80" : "text-gray-400"}`}>
+                      <span className={`tix-mono ${isSelected ? "opacity-80" : "text-gray-400"}`}>
                         {memberTotal.toLocaleString()}원
                       </span>
                     )}
@@ -302,21 +410,25 @@ export default function ProjectPage() {
             {selectedMemberId && (() => {
               const member = project.members.find((m) => m.id === selectedMemberId);
               if (!member) return null;
-              // 정산 대상 결제 금액 (공동경비 제외)
+              // 정산 대상 결제 금액 (공동경비/개인경비 제외)
               const paid = project.expenses
-                .filter((e) => !Boolean(e.isSharedCost) && e.payerId === selectedMemberId)
+                .filter((e) => !Boolean(e.isSharedCost) && !Boolean(e.isPersonal) && e.payerId === selectedMemberId)
                 .reduce((s, e) => s + e.amount, 0);
-              // 정산 대상에서만 부담 계산 (공동경비 제외)
+              // 정산 대상에서만 부담 계산 (공동경비/개인경비 제외)
               const participated = project.expenses
-                .filter((e) => !Boolean(e.isSharedCost) && Array.isArray(e.participantIds) && e.participantIds.includes(selectedMemberId))
+                .filter((e) => !Boolean(e.isSharedCost) && !Boolean(e.isPersonal) && Array.isArray(e.participantIds) && e.participantIds.includes(selectedMemberId))
                 .reduce((s, e) => s + e.amount / (e.participantIds.length || 1), 0);
+              // 개인경비로 낸 돈 (정산 제외, 안내용)
+              const personalPaid = project.expenses
+                .filter((e) => Boolean(e.isPersonal) && e.payerId === selectedMemberId)
+                .reduce((s, e) => s + e.amount, 0);
               // 공동경비는 전체 멤버 수로 균등 분배
               const memberCount = project.members.length || 1;
               const sharedCostPaid = project.expenses
                 .filter((e) => Boolean(e.isSharedCost))
                 .reduce((s, e) => s + e.amount / memberCount, 0);
               return (
-                <div className="mt-3 p-3 rounded-2xl flex items-center gap-4" style={{ backgroundColor: member.color + "18" }}>
+                <div className="mt-3 p-3 rounded-sm flex items-center gap-4" style={{ backgroundColor: member.color + "18" }}>
                   <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold" style={{ backgroundColor: member.color }}>
                     {member.name[0]}
                   </div>
@@ -326,16 +438,22 @@ export default function ProjectPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-gray-400">결제한 금액</p>
-                    <p className="text-sm font-bold text-gray-900">{paid.toLocaleString()}원</p>
+                    <p className="tix-mono text-sm font-bold text-gray-900">{paid.toLocaleString()}원</p>
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-gray-400">부담 금액</p>
-                    <p className="text-sm font-bold text-gray-900">{Math.round(participated).toLocaleString()}원</p>
+                    <p className="tix-mono text-sm font-bold text-gray-900">{Math.round(participated).toLocaleString()}원</p>
                   </div>
                   {sharedCostPaid > 0 && (
                     <div className="text-right">
                       <p className="text-xs text-gray-400">공동경비</p>
-                      <p className="text-sm font-bold text-emerald-600">{Math.round(sharedCostPaid).toLocaleString()}원</p>
+                      <p className="tix-mono text-sm font-bold text-emerald-600">{Math.round(sharedCostPaid).toLocaleString()}원</p>
+                    </div>
+                  )}
+                  {personalPaid > 0 && (
+                    <div className="text-right">
+                      <p className="text-xs text-gray-400">개인경비</p>
+                      <p className="tix-mono text-sm font-bold text-violet-600">{Math.round(personalPaid).toLocaleString()}원</p>
                     </div>
                   )}
                 </div>
@@ -369,29 +487,29 @@ export default function ProjectPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 40 }}
             transition={{ duration: 0.2 }}
-            className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl"
+            className="bg-[#F6F7F2] rounded-sm w-full max-w-sm p-6 shadow-2xl border border-[#12222D]/12"
             onClick={(e) => e.stopPropagation()}
           >
             {/* 모달 헤더 */}
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 bg-indigo-100 rounded-xl flex items-center justify-center">
+                <div className="w-9 h-9 bg-indigo-100 rounded-sm flex items-center justify-center">
                   <Share2 className="w-4.5 h-4.5 text-indigo-600" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-900 text-base">공유 링크</h3>
-                  <p className="text-xs text-gray-400">로그인 없이 볼 수 있어요</p>
+                  <h3 className="font-bold text-[#12222D] text-base">공유 링크</h3>
+                  <p className="text-xs text-[#5B6B72]">로그인 없이 볼 수 있어요</p>
                 </div>
               </div>
-              <button onClick={() => setShowShareModal(false)} className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors">
+              <button onClick={() => setShowShareModal(false)} className="w-8 h-8 rounded-sm hover:bg-[#EDEFE7] flex items-center justify-center transition-colors">
                 <X className="w-4 h-4 text-gray-400" />
               </button>
             </div>
 
             {/* 링크 표시 */}
-            <div className="bg-gray-50 rounded-2xl p-3 mb-4 flex items-center gap-2">
+            <div className="bg-[#EDEFE7] rounded-sm p-3 mb-4 flex items-center gap-2">
               <Link className="w-4 h-4 text-gray-400 shrink-0" />
-              <span className="text-xs text-gray-600 flex-1 truncate font-mono">{shareUrl}</span>
+              <span className="tix-mono text-xs text-gray-600 flex-1 truncate">{shareUrl}</span>
             </div>
 
             {/* 안내 문구 */}
@@ -403,7 +521,7 @@ export default function ProjectPage() {
             <div className="flex flex-col gap-2">
               <button
                 onClick={handleCopyShareLink}
-                className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl py-3 font-semibold text-sm transition-colors"
+                className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-sm py-3 font-semibold text-sm transition-colors"
               >
                 {shareCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 {shareCopied ? "복사 완료!" : "링크 복사"}
@@ -415,7 +533,7 @@ export default function ProjectPage() {
                   const text = `[${project.name}] 여행 정산 내역을 공유합니다.\n\n${shareUrl}`;
                   window.open(`https://story.kakao.com/share?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(text)}`, "_blank");
                 }}
-                className="w-full flex items-center justify-center gap-2 bg-[#FEE500] hover:bg-[#F0D800] text-[#3C1E1E] rounded-2xl py-3 font-semibold text-sm transition-colors"
+                className="w-full flex items-center justify-center gap-2 bg-[#FEE500] hover:bg-[#F0D800] text-[#3C1E1E] rounded-sm py-3 font-semibold text-sm transition-colors"
               >
                 카카오톡으로 공유
               </button>
@@ -440,7 +558,8 @@ export default function ProjectPage() {
       <AddExpenseModal open={showAddExpense} onClose={() => setShowAddExpense(false)} project={project}
         defaultDate={selectedDate && selectedDate !== "pre-trip" ? selectedDate : project.startDate}
         defaultIsPreTrip={selectedDate === "pre-trip"} onSaved={refetch} />
-      <MembersPanel open={showMembers} onClose={() => setShowMembers(false)} project={project} onRefresh={refetch} />
+      <MembersPanel open={showMembers} onClose={() => setShowMembers(false)} project={project} onRefresh={refetch} newMemberIds={newMemberIds} />
+      <InviteModal open={showInvite} onClose={() => setShowInvite(false)} project={project} />
       <ProjectSettingsModal open={showSettings} onClose={() => setShowSettings(false)} project={project} onRefresh={refetch} />
     </div>
   );

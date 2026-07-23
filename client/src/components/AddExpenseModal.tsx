@@ -3,6 +3,8 @@
 // 지출 타입: "여행 중" vs "사전 결제" (날짜 없이 독립 분류)
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { useDragScroll } from "@/hooks/useDragScroll";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import type { Expense, ExpenseCategory, TravelProject } from "@/lib/types";
 import { CATEGORY_CONFIG, getDatesInRange, formatDate, formatDayOfWeek } from "@/lib/types";
-import { CalendarDays, Clock, Plane } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock, Plane, User, Users } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -45,8 +47,42 @@ export default function AddExpenseModal({
   const updateExpense = trpc.expenses.update.useMutation({ onSuccess: invalidateAndClose });
   const travelDates = getDatesInRange(project.startDate, project.endDate);
 
+  const {
+    ref: dateScrollRef,
+    canScrollLeft: dateCanScrollLeft,
+    canScrollRight: dateCanScrollRight,
+    scrollLeft: scrollDatesLeft,
+    scrollRight: scrollDatesRight,
+  } = useDragScroll<HTMLDivElement>();
+  const { user } = useAuth();
+  // 로그인 계정과 연결된 멤버(진짜 "나") 우선, 없으면 isMe로 표시된 멤버로 폴백
+  const myMemberId =
+    project.members.find((m) => m.profileId === user?.id)?.id ??
+    project.members.find((m) => m.isMe)?.id;
+
   const [isPreTrip, setIsPreTrip] = useState(defaultIsPreTrip);
   const [isSharedCost, setIsSharedCost] = useState(Boolean(editExpense?.isSharedCost));
+  const [isPersonal, setIsPersonal] = useState(Boolean(editExpense?.isPersonal));
+
+  // 공동경비/개인경비는 서로 배타적 - 하나를 켜면 다른 하나는 자동으로 꺼진다
+  const toggleSharedCost = () => {
+    setIsSharedCost((prev) => {
+      const next = !prev;
+      if (next) setIsPersonal(false);
+      return next;
+    });
+  };
+  const togglePersonal = () => {
+    setIsPersonal((prev) => {
+      const next = !prev;
+      if (next) {
+        setIsSharedCost(false);
+        // 개인경비는 기본적으로 결제자가 "나"
+        if (myMemberId) setForm((f) => ({ ...f, payerId: myMemberId }));
+      }
+      return next;
+    });
+  };
   const [form, setForm] = useState({
     title: "",
     amount: "",
@@ -63,6 +99,7 @@ export default function AddExpenseModal({
       const preTrip = Boolean(editExpense.isPreTrip) === true;
       setIsPreTrip(preTrip);
       setIsSharedCost(Boolean(editExpense.isSharedCost));
+      setIsPersonal(Boolean(editExpense.isPersonal));
       setForm({
         title: editExpense.title,
         amount: editExpense.amount.toString(),
@@ -78,6 +115,7 @@ export default function AddExpenseModal({
     } else {
       setIsPreTrip(defaultIsPreTrip);
       setIsSharedCost(false);
+      setIsPersonal(false);
       setForm({
         title: "",
         amount: "",
@@ -97,7 +135,7 @@ export default function AddExpenseModal({
     if (!form.amount || isNaN(Number(form.amount)) || Number(form.amount) <= 0)
       errs.amount = "올바른 금액을 입력해주세요";
     if (!isSharedCost && !form.payerId) errs.payerId = "결제자를 선택해주세요";
-    if (!isSharedCost && form.participantIds.length === 0)
+    if (!isSharedCost && !isPersonal && form.participantIds.length === 0)
       errs.participantIds = "분담 멤버를 1명 이상 선택해주세요";
     if (!isPreTrip && !form.date) errs.date = "날짜를 선택해주세요";
     return errs;
@@ -116,11 +154,12 @@ export default function AddExpenseModal({
       amount: Math.round(Number(form.amount)),
       category: form.category,
       payerId: form.payerId,
-      participantIds: form.participantIds,
+      participantIds: isPersonal ? [form.payerId] : form.participantIds,
       date: isPreTrip ? "" : form.date,
       note: form.note.trim() || undefined,
       isPreTrip: isPreTrip,
       isSharedCost: isSharedCost,
+      isPersonal: isPersonal,
     };
 
     if (editExpense) {
@@ -157,7 +196,7 @@ export default function AddExpenseModal({
       <DialogContent className="sm:max-w-md rounded-2xl p-0 overflow-hidden max-h-[90vh] overflow-y-auto">
         {/* 헤더 */}
         <div
-          className={`px-6 pt-5 pb-4 sticky top-0 z-10 transition-colors ${
+          className={`px-6 pt-5 pb-4 sticky top-0 z-10 transition-colors min-w-0 ${
             isPreTrip ? "bg-amber-500" : "bg-indigo-600"
           }`}
         >
@@ -168,7 +207,7 @@ export default function AddExpenseModal({
           </DialogHeader>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5 min-w-0">
 
           {/* 지출 타입 선택 - 여행 중 / 사전 결제 */}
           <div className="space-y-2">
@@ -217,27 +256,52 @@ export default function AddExpenseModal({
           {!isPreTrip && (
             <div className="space-y-2">
               <Label className="text-sm font-medium text-gray-700">날짜</Label>
-              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                {travelDates.map((date, idx) => (
+              <div className="relative min-w-0">
+                {dateCanScrollLeft && (
                   <button
-                    key={date}
                     type="button"
-                    onClick={() => setForm({ ...form, date })}
-                    className={`shrink-0 flex flex-col items-center gap-0.5 w-12 py-2 rounded-xl transition-all ${
-                      form.date === date
-                        ? "bg-indigo-600 text-white"
-                        : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                    }`}
+                    onClick={scrollDatesLeft}
+                    className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-6 h-6 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-400 hover:text-gray-600"
+                    aria-label="이전 날짜 보기"
                   >
-                    <span className="text-[10px] font-medium opacity-70">
-                      {formatDayOfWeek(date)}
-                    </span>
-                    <span className="text-sm font-bold leading-none">
-                      {new Date(date).getDate()}
-                    </span>
-                    <span className="text-[9px] opacity-60">{idx + 1}일</span>
+                    <ChevronLeft className="w-3.5 h-3.5" />
                   </button>
-                ))}
+                )}
+                <div
+                  ref={dateScrollRef}
+                  className={`flex gap-2 overflow-x-auto pb-1 scrollbar-hide cursor-grab active:cursor-grabbing ${dateCanScrollLeft ? "pl-7" : ""} ${dateCanScrollRight ? "pr-7" : ""}`}
+                >
+                  {travelDates.map((date, idx) => (
+                    <button
+                      key={date}
+                      type="button"
+                      onClick={() => setForm({ ...form, date })}
+                      className={`shrink-0 flex flex-col items-center gap-0.5 w-12 py-2 rounded-xl transition-all ${
+                        form.date === date
+                          ? "bg-indigo-600 text-white"
+                          : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                      }`}
+                    >
+                      <span className="text-[10px] font-medium opacity-70">
+                        {formatDayOfWeek(date)}
+                      </span>
+                      <span className="text-sm font-bold leading-none">
+                        {new Date(date).getDate()}
+                      </span>
+                      <span className="text-[9px] opacity-60">{idx + 1}일</span>
+                    </button>
+                  ))}
+                </div>
+                {dateCanScrollRight && (
+                  <button
+                    type="button"
+                    onClick={scrollDatesRight}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-6 h-6 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-400 hover:text-gray-600"
+                    aria-label="다음 날짜 보기"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
               {form.date && (
                 <p className="text-xs text-gray-400">선택: {formatDate(form.date)}</p>
@@ -273,7 +337,7 @@ export default function AddExpenseModal({
                         : { backgroundColor: cfg.bg, color: cfg.textColor }
                     }
                   >
-                    <span>{cfg.icon}</span>
+                    <cfg.icon className="w-3.5 h-3.5" />
                     <span>{cat}</span>
                   </button>
                 );
@@ -298,10 +362,14 @@ export default function AddExpenseModal({
             <Label className="text-sm font-medium text-gray-700">금액 (원)</Label>
             <div className="relative">
               <Input
-                type="number"
-                value={form.amount}
-                onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                placeholder="350000"
+                type="text"
+                inputMode="numeric"
+                value={form.amount ? Number(form.amount).toLocaleString("ko-KR") : ""}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/[^0-9]/g, "");
+                  setForm({ ...form, amount: digits });
+                }}
+                placeholder="350,000"
                 className={`rounded-xl border-gray-200 pr-12 ${errors.amount ? "border-red-400" : ""}`}
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
@@ -309,7 +377,7 @@ export default function AddExpenseModal({
               </span>
             </div>
             {errors.amount && <p className="text-xs text-red-500">{errors.amount}</p>}
-            {amountNum > 0 && form.participantIds.length > 0 && (
+            {!isPersonal && amountNum > 0 && form.participantIds.length > 0 && (
               <p className={`text-xs font-medium ${isPreTrip ? "text-amber-600" : "text-indigo-600"}`}>
                 1인당 {perPerson.toLocaleString()}원
               </p>
@@ -318,25 +386,40 @@ export default function AddExpenseModal({
 
           {/* 결제자 */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <Label className="text-sm font-medium text-gray-700">결제자</Label>
-              {/* 공동경비 토글 */}
-              <button
-                type="button"
-                onClick={() => setIsSharedCost((v) => !v)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border-2 ${
-                  isSharedCost
-                    ? "bg-emerald-500 text-white border-emerald-500"
-                    : "bg-gray-100 text-gray-500 border-transparent hover:bg-gray-200"
-                }`}
-              >
-                <span className="text-sm">{isSharedCost ? "✓" : "💚"}</span>
-                공동경비
-              </button>
+              <div className="flex items-center gap-1.5">
+                {/* 공동경비 토글 */}
+                <button
+                  type="button"
+                  onClick={toggleSharedCost}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border-2 ${
+                    isSharedCost
+                      ? "bg-emerald-500 text-white border-emerald-500"
+                      : "bg-gray-100 text-gray-500 border-transparent hover:bg-gray-200"
+                  }`}
+                >
+                  {isSharedCost ? <Check className="w-3.5 h-3.5" /> : <Users className="w-3.5 h-3.5" />}
+                  공동경비
+                </button>
+                {/* 개인경비 토글 */}
+                <button
+                  type="button"
+                  onClick={togglePersonal}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border-2 ${
+                    isPersonal
+                      ? "bg-violet-500 text-white border-violet-500"
+                      : "bg-gray-100 text-gray-500 border-transparent hover:bg-gray-200"
+                  }`}
+                >
+                  {isPersonal ? <Check className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
+                  개인경비
+                </button>
+              </div>
             </div>
             {isSharedCost ? (
               <div className="flex items-center gap-2 px-4 py-3 bg-emerald-50 rounded-xl border border-emerald-200">
-                <span className="text-emerald-600 text-lg">💚</span>
+                <Users className="w-4.5 h-4.5 text-emerald-600" />
                 <div>
                   <p className="text-sm font-semibold text-emerald-700">공동경비로 처리</p>
                   <p className="text-xs text-emerald-600">정산 없이 공동으로 부담한 비용이에요</p>
@@ -372,7 +455,7 @@ export default function AddExpenseModal({
                       {member.name[0]}
                     </div>
                     {member.name}
-                    {member.isMe && <span className="text-[10px] opacity-70">(나)</span>}
+                    {member.id === myMemberId && <span className="text-[10px] opacity-70">(나)</span>}
                   </button>
                 ))}
               </div>
@@ -381,7 +464,15 @@ export default function AddExpenseModal({
           </div>
 
           {/* 분담 멤버 */}
-          {!isSharedCost && <div className="space-y-2">
+          {isPersonal ? (
+            <div className="flex items-center gap-2 px-4 py-3 bg-violet-50 rounded-xl border border-violet-200">
+              <User className="w-4.5 h-4.5 text-violet-600" />
+              <div>
+                <p className="text-sm font-semibold text-violet-700">개인 경비로 처리</p>
+                <p className="text-xs text-violet-600">정산에 포함되지 않고 결제자 본인의 지출로만 기록돼요</p>
+              </div>
+            </div>
+          ) : !isSharedCost && <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium text-gray-700">분담 멤버</Label>
               <button

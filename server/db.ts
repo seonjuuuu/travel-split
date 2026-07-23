@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, exists, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import {
@@ -61,21 +61,47 @@ export async function touchLastSignedIn(userId: string) {
 }
 
 // ── 여행 프로젝트 ────────────────────────────────────────────────
-export async function getProjectsByUserId(userId: string) {
+// 소유자든 초대받은 협업자든 동일하게 "이 프로젝트에 profileId로 연결된 멤버 행이 있는가"로 판단한다.
+export async function getProjectsForUser(profileId: string) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(travelProjects).where(eq(travelProjects.userId, userId));
-}
-
-export async function getProjectById(id: string, userId: string) {
-  const db = await getDb();
-  if (!db) return undefined;
-  const rows = await db
+  return db
     .select()
     .from(travelProjects)
-    .where(and(eq(travelProjects.id, id), eq(travelProjects.userId, userId)))
+    .where(
+      exists(
+        db
+          .select()
+          .from(projectMembers)
+          .where(
+            and(
+              eq(projectMembers.projectId, travelProjects.id),
+              eq(projectMembers.profileId, profileId)
+            )
+          )
+      )
+    );
+}
+
+// 접근 권한 체크 + 요청자 본인의 memberId를 한 번에 반환. 접근 불가면 undefined.
+export async function getProjectAccess(projectId: string, profileId: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const memberRows = await db
+    .select()
+    .from(projectMembers)
+    .where(and(eq(projectMembers.projectId, projectId), eq(projectMembers.profileId, profileId)))
     .limit(1);
-  return rows[0];
+  if (memberRows.length === 0) return undefined;
+
+  const projectRows = await db
+    .select()
+    .from(travelProjects)
+    .where(eq(travelProjects.id, projectId))
+    .limit(1);
+  if (projectRows.length === 0) return undefined;
+
+  return { project: projectRows[0], memberId: memberRows[0].id };
 }
 
 export async function createProject(data: InsertTravelProject) {
@@ -108,7 +134,7 @@ export async function deleteProject(id: string, userId: string) {
     .where(and(eq(travelProjects.id, id), eq(travelProjects.userId, userId)));
 }
 
-// ── 공유 토큰 ────────────────────────────────────────────────────
+// ── 공유 토큰 (읽기 전용, 로그인 불필요) ────────────────────────────
 export async function setProjectShareToken(id: string, userId: string, token: string | null) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
@@ -116,6 +142,27 @@ export async function setProjectShareToken(id: string, userId: string, token: st
     .update(travelProjects)
     .set({ shareToken: token, updatedAt: new Date() })
     .where(and(eq(travelProjects.id, id), eq(travelProjects.userId, userId)));
+}
+
+// ── 초대 토큰 (가입해서 공동 편집, 소유자만 발급/해제 가능) ──────────
+export async function setProjectEditToken(id: string, userId: string, token: string | null) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db
+    .update(travelProjects)
+    .set({ editToken: token, updatedAt: new Date() })
+    .where(and(eq(travelProjects.id, id), eq(travelProjects.userId, userId)));
+}
+
+export async function getProjectByEditToken(token: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(travelProjects)
+    .where(eq(travelProjects.editToken, token))
+    .limit(1);
+  return rows[0];
 }
 
 export async function getProjectByShareToken(token: string) {
@@ -136,17 +183,41 @@ export async function getMembersByProjectId(projectId: string) {
   return db.select().from(projectMembers).where(eq(projectMembers.projectId, projectId));
 }
 
+export async function getMemberById(id: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(projectMembers).where(eq(projectMembers.id, id)).limit(1);
+  return rows[0];
+}
+
 export async function createMember(data: {
   id: string;
   projectId: string;
   name: string;
   isMe: boolean;
   color: string;
+  profileId?: string;
 }) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.insert(projectMembers).values(data);
   return data;
+}
+
+// 아직 로그인 계정과 연결되지 않은 "이름표" 멤버 목록 (초대 링크로 들어온 사람이 자기 자신을 고를 때 사용)
+export async function getUnclaimedMembers(projectId: string) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(projectMembers)
+    .where(and(eq(projectMembers.projectId, projectId), isNull(projectMembers.profileId)));
+}
+
+export async function claimMember(memberId: string, profileId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(projectMembers).set({ profileId }).where(eq(projectMembers.id, memberId));
 }
 
 export async function updateMember(
@@ -169,6 +240,13 @@ export async function getExpensesByProjectId(projectId: string) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(expenses).where(eq(expenses.projectId, projectId));
+}
+
+export async function getExpenseById(id: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(expenses).where(eq(expenses.id, id)).limit(1);
+  return rows[0];
 }
 
 export async function createExpense(data: InsertExpense) {

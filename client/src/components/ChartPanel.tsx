@@ -13,6 +13,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { Tag } from "lucide-react";
 import type { TravelProject, ExpenseCategory } from "@/lib/types";
 import { CATEGORY_CONFIG, formatAmount, formatDate } from "@/lib/types";
 
@@ -52,7 +53,7 @@ export default function ChartPanel({ project, selectedDate }: Props) {
       value,
       color: CATEGORY_CONFIG[name as ExpenseCategory]?.color || "#6b7280",
       bg: CATEGORY_CONFIG[name as ExpenseCategory]?.bg || "#f3f4f6",
-      icon: CATEGORY_CONFIG[name as ExpenseCategory]?.icon || "📌",
+      icon: CATEGORY_CONFIG[name as ExpenseCategory]?.icon || Tag,
     }))
     .sort((a, b) => b.value - a.value);
 
@@ -140,10 +141,10 @@ export default function ChartPanel({ project, selectedDate }: Props) {
             {categoryData.map((cat) => (
               <div key={cat.name} className="flex items-center gap-2">
                 <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-sm shrink-0"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
                   style={{ backgroundColor: cat.bg }}
                 >
-                  {cat.icon}
+                  <cat.icon className="w-4 h-4" style={{ color: cat.color }} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-0.5">
@@ -260,16 +261,20 @@ export default function ChartPanel({ project, selectedDate }: Props) {
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-indigo-50 rounded-2xl p-4">
           <p className="text-xs text-indigo-500 font-medium mb-1">가장 많은 지출</p>
-          {categoryData[0] && (
-            <>
-              <p className="text-lg font-bold text-indigo-700">
-                {categoryData[0].icon} {categoryData[0].name}
-              </p>
-              <p className="text-xs text-indigo-500 mt-0.5">
-                {formatAmount(categoryData[0].value)}
-              </p>
-            </>
-          )}
+          {categoryData[0] && (() => {
+            const TopIcon = categoryData[0].icon;
+            return (
+              <>
+                <p className="flex items-center gap-1.5 text-lg font-bold text-indigo-700">
+                  <TopIcon className="w-4.5 h-4.5" />
+                  {categoryData[0].name}
+                </p>
+                <p className="text-xs text-indigo-500 mt-0.5">
+                  {formatAmount(categoryData[0].value)}
+                </p>
+              </>
+            );
+          })()}
         </div>
         <div className="bg-amber-50 rounded-2xl p-4">
           <p className="text-xs text-amber-600 font-medium mb-1">가장 많이 결제</p>

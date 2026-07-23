@@ -5,6 +5,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Check, Share2, Copy, ArrowRight, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 import type { TravelProject } from "@/lib/types";
 import ShareModal from "@/components/ShareModal";
@@ -19,6 +20,11 @@ interface Props {
 }
 
 export default function SettlementPanel({ project }: Props) {
+  const { user } = useAuth();
+  // 로그인 계정과 연결된 멤버(진짜 "나") 우선, 없으면 isMe로 표시된 멤버로 폴백
+  const myMemberId =
+    project.members.find((m) => m.profileId === user?.id)?.id ??
+    project.members.find((m) => m.isMe)?.id;
   const [settledTransfers, setSettledTransfers] = useState<Record<string, boolean>>({});
   const toggleSettlement = (key: string) => {
     setSettledTransfers(prev => ({ ...prev, [key]: !prev[key] }));
@@ -38,7 +44,10 @@ export default function SettlementPanel({ project }: Props) {
   const sharedCostTotal = project.expenses
     .filter((e) => Boolean(e.isSharedCost))
     .reduce((s, e) => s + e.amount, 0);
-  const settlementTotal = totalExpense - sharedCostTotal;
+  const personalTotal = project.expenses
+    .filter((e) => Boolean(e.isPersonal))
+    .reduce((s, e) => s + e.amount, 0);
+  const settlementTotal = totalExpense - sharedCostTotal - personalTotal;
 
   const getTransferKey = (fromId: string, toId: string, amount: number) =>
     `${project.id}-${fromId}-${toId}-${amount}`;
@@ -124,9 +133,16 @@ export default function SettlementPanel({ project }: Props) {
           <h3 className="font-bold text-gray-900 text-sm">멤버별 정산 현황</h3>
           <p className="text-xs text-gray-400 mt-0.5">
             총 지출 {formatAmount(totalExpense)}
-            {sharedCostTotal > 0 && (
+            {(sharedCostTotal > 0 || personalTotal > 0) && (
               <span className="ml-2 text-emerald-600">
-                (공동경비 {formatAmount(sharedCostTotal)} 제외 · 정산 대상 {formatAmount(settlementTotal)})
+                (
+                {[
+                  sharedCostTotal > 0 ? `공동경비 ${formatAmount(sharedCostTotal)}` : null,
+                  personalTotal > 0 ? `개인경비 ${formatAmount(personalTotal)}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" + ")}{" "}
+                제외 · 정산 대상 {formatAmount(settlementTotal)})
               </span>
             )}
           </p>
@@ -163,7 +179,7 @@ export default function SettlementPanel({ project }: Props) {
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-semibold text-sm" style={{ color: member.color }}>
                         {member.name}
-                        {member.isMe && (
+                        {member.id === myMemberId && (
                           <span className="text-xs text-gray-400 ml-1">(나)</span>
                         )}
                       </span>
@@ -184,6 +200,10 @@ export default function SettlementPanel({ project }: Props) {
                         <><span className="text-gray-200">·</span>
                         <span className="text-emerald-600 font-medium">공동경비 {formatAmount(Math.round(result.sharedCostPaid))}</span></>
                       )}
+                      {result.personalPaid > 0 && (
+                        <><span className="text-gray-200">·</span>
+                        <span className="text-violet-600 font-medium">개인경비 {formatAmount(Math.round(result.personalPaid))}</span></>
+                      )}
                     </div>
                     {/* 프로그레스 바 */}
                     <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -193,7 +213,7 @@ export default function SettlementPanel({ project }: Props) {
                           width: `${
                             totalExpense > 0
                               ? Math.min(
-                                  ((result.totalPaid + result.sharedCostPaid) / totalExpense) * 100,
+                                  ((result.totalPaid + result.sharedCostPaid + result.personalPaid) / totalExpense) * 100,
                                   100
                                 )
                               : 0

@@ -8,6 +8,20 @@
       "when": 1784768515832,
       "tag": "0000_natural_maginty",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1784781304164,
+      "tag": "0001_narrow_abomination",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784782551183,
+      "tag": "0002_dapper_paladin",
+      "breakpoints": true
     }
   ]
 }
