@@ -156,6 +156,13 @@ export default function ProjectPage() {
   }
 
   const travelDates = getDatesInRange(project.startDate, project.endDate);
+  const todayStr = new Date().toISOString().split("T")[0];
+  // 특정 날짜 탭을 고르지 않았을 때 지출 추가 모달에 넘길 기본 날짜:
+  // 오늘이 여행 기간 안이면 오늘, 아니면 시작일
+  const defaultExpenseDate =
+    todayStr >= project.startDate && todayStr <= project.endDate
+      ? todayStr
+      : project.startDate;
   const personalExpenses = project.expenses.filter((e) => Boolean(e.isPersonal) === true);
   const preTripExpenses = project.expenses.filter(
     (e) => Boolean(e.isPreTrip) === true && Boolean(e.isPersonal) !== true
@@ -296,7 +303,7 @@ export default function ProjectPage() {
                 {travelDates.map((date, idx) => {
                   const dayExpenses = tripExpenses.filter((e) => e.date === date);
                   const isSelected = selectedDate === date;
-                  const isToday = date === new Date().toISOString().split("T")[0];
+                  const isToday = date === todayStr;
                   return (
                     <button key={date} onClick={() => setSelectedDate(isSelected ? null : date)}
                       className={`tix-mono shrink-0 flex flex-col items-center gap-0.5 w-14 py-2 rounded-sm transition-all ${isSelected ? "bg-indigo-600 text-white shadow-sm" : isToday ? "bg-indigo-50 text-indigo-600 border border-indigo-200" : "bg-[#EDEFE7] text-[#5B6B72] hover:bg-[#E4E6DF]"}`}>
@@ -556,7 +563,11 @@ export default function ProjectPage() {
       )}
 
       <AddExpenseModal open={showAddExpense} onClose={() => setShowAddExpense(false)} project={project}
-        defaultDate={selectedDate && selectedDate !== "pre-trip" ? selectedDate : project.startDate}
+        defaultDate={
+          selectedDate && selectedDate !== "pre-trip" && selectedDate !== "personal"
+            ? selectedDate
+            : defaultExpenseDate
+        }
         defaultIsPreTrip={selectedDate === "pre-trip"} onSaved={refetch} />
       <MembersPanel open={showMembers} onClose={() => setShowMembers(false)} project={project} onRefresh={refetch} newMemberIds={newMemberIds} />
       <InviteModal open={showInvite} onClose={() => setShowInvite(false)} project={project} />

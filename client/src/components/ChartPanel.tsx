@@ -1,6 +1,7 @@
 // 그래프 패널 컴포넌트
 // Design: Clean charts with category colors and member breakdown
 
+import { useState } from "react";
 import {
   PieChart,
   Pie,
@@ -14,7 +15,8 @@ import {
   Legend,
 } from "recharts";
 import { Tag } from "lucide-react";
-import type { TravelProject, ExpenseCategory } from "@/lib/types";
+import { useAuth } from "@/_core/hooks/useAuth";
+import type { Expense, TravelProject, ExpenseCategory } from "@/lib/types";
 import { CATEGORY_CONFIG, formatAmount, formatDate } from "@/lib/types";
 
 interface Props {
@@ -22,32 +24,112 @@ interface Props {
   selectedDate: string | null;
 }
 
+type ViewMode = "all" | "settlement" | "personal";
+
+const VIEW_TABS: { key: ViewMode; label: string }[] = [
+  { key: "all", label: "전체" },
+  { key: "settlement", label: "정산 대상만" },
+  { key: "personal", label: "개인경비" },
+];
+
+function filterByView(list: Expense[], viewMode: ViewMode): Expense[] {
+  if (viewMode === "settlement")
+    return list.filter((e) => !Boolean(e.isPersonal) && !Boolean(e.isSharedCost));
+  if (viewMode === "personal") return list.filter((e) => Boolean(e.isPersonal));
+  return list;
+}
+
 export default function ChartPanel({ project, selectedDate }: Props) {
-  const expenses = selectedDate
+  const { user } = useAuth();
+  const myMemberId =
+    project.members.find((m) => m.profileId === user?.id)?.id ??
+    project.members.find((m) => m.isMe)?.id;
+
+  const [viewMode, setViewMode] = useState<ViewMode>("settlement");
+  // "개인경비" 탭에서 개인경비 전액 + 정산 대상 지출 중 내가 부담할 몫까지 합쳐서 보고 싶을 때 체크
+  const [includeMyShare, setIncludeMyShare] = useState(false);
+
+  const dateFiltered = selectedDate
     ? project.expenses.filter((e) => e.date === selectedDate)
     : project.expenses;
+  const expenses = filterByView(dateFiltered, viewMode);
+
+  // 정산 대상 지출(개인경비·공동경비 제외) 중 내가 참여자로 포함된 것의 "내 몫"만 추출
+  const myShareExtras: { category: ExpenseCategory; amount: number; date: string }[] =
+    viewMode === "personal" && includeMyShare && myMemberId
+      ? dateFiltered
+          .filter((e) => !Boolean(e.isPersonal) && !Boolean(e.isSharedCost))
+          .flatMap((e) => {
+            const participants =
+              e.participantIds.length > 0 ? e.participantIds : project.members.map((m) => m.id);
+            if (!participants.includes(myMemberId)) return [];
+            return [{ category: e.category, amount: e.amount / participants.length, date: e.date }];
+          })
+      : [];
+
+  const viewTabs = (
+    <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex gap-1.5 bg-gray-100 rounded-full p-1 w-fit">
+        {VIEW_TABS.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setViewMode(tab.key)}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+              viewMode === tab.key
+                ? "bg-white text-indigo-600 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      {viewMode === "personal" && myMemberId && (
+        <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={includeMyShare}
+            onChange={(e) => setIncludeMyShare(e.target.checked)}
+            className="w-3.5 h-3.5 rounded accent-violet-600"
+          />
+          정산 대상 지출 중 내 몫까지 합쳐서 보기
+        </label>
+      )}
+    </div>
+  );
 
   if (expenses.length === 0) {
+    const emptyMessage = selectedDate
+      ? "이 날의 지출이 없어요"
+      : viewMode === "personal"
+        ? "개인 지출이 없어요"
+        : viewMode === "settlement"
+          ? "정산 대상 지출이 없어요"
+          : "아직 지출이 없어요";
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-          <span className="text-2xl">📊</span>
+      <div className="space-y-4">
+        {viewTabs}
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+            <span className="text-2xl">📊</span>
+          </div>
+          <p className="text-gray-500 font-medium mb-1">{emptyMessage}</p>
+          <p className="text-sm text-gray-400">지출을 추가하면 그래프가 표시됩니다</p>
         </div>
-        <p className="text-gray-500 font-medium mb-1">
-          {selectedDate ? "이 날의 지출이 없어요" : "아직 지출이 없어요"}
-        </p>
-        <p className="text-sm text-gray-400">지출을 추가하면 그래프가 표시됩니다</p>
       </div>
     );
   }
 
-  // 카테고리별 합계
-  const categoryData = Object.entries(
-    expenses.reduce<Record<string, number>>((acc, e) => {
-      acc[e.category] = (acc[e.category] || 0) + e.amount;
-      return acc;
-    }, {})
-  )
+  // 카테고리별 합계 (개인경비 탭 + 체크 시 내 정산 몫도 같은 카테고리에 합산)
+  const categoryTotals: Record<string, number> = {};
+  expenses.forEach((e) => {
+    categoryTotals[e.category] = (categoryTotals[e.category] || 0) + e.amount;
+  });
+  myShareExtras.forEach((x) => {
+    categoryTotals[x.category] = (categoryTotals[x.category] || 0) + x.amount;
+  });
+  const categoryData = Object.entries(categoryTotals)
     .map(([name, value]) => ({
       name,
       value,
@@ -57,27 +139,35 @@ export default function ChartPanel({ project, selectedDate }: Props) {
     }))
     .sort((a, b) => b.value - a.value);
 
-  const totalExpense = expenses.reduce((s, e) => s + e.amount, 0);
+  const totalExpense =
+    expenses.reduce((s, e) => s + e.amount, 0) +
+    myShareExtras.reduce((s, x) => s + x.amount, 0);
 
-  // 멤버별 결제 합계
+  // 멤버별 결제 합계 (개인경비 탭 + 체크 시 "나"의 몫에 정산 몫도 합산)
+  const myShareTotal = myShareExtras.reduce((s, x) => s + x.amount, 0);
   const memberData = project.members
     .map((m) => {
-      const paid = expenses
-        .filter((e) => e.payerId === m.id)
-        .reduce((s, e) => s + e.amount, 0);
+      let paid = expenses.filter((e) => e.payerId === m.id).reduce((s, e) => s + e.amount, 0);
+      if (m.id === myMemberId) paid += myShareTotal;
       return { name: m.name, paid, color: m.color };
     })
     .filter((m) => m.paid > 0)
     .sort((a, b) => b.paid - a.paid);
 
   // 날짜별 지출 (전체 보기일 때만)
+  const dailyTotals: Record<string, number> = {};
+  if (!selectedDate) {
+    expenses.forEach((e) => {
+      if (Boolean(e.isPreTrip) || !e.date) return;
+      dailyTotals[e.date] = (dailyTotals[e.date] || 0) + e.amount;
+    });
+    myShareExtras.forEach((x) => {
+      if (!x.date) return;
+      dailyTotals[x.date] = (dailyTotals[x.date] || 0) + x.amount;
+    });
+  }
   const dailyData = !selectedDate
-    ? Object.entries(
-        project.expenses.filter((e) => !Boolean(e.isPreTrip) && e.date).reduce<Record<string, number>>((acc, e) => {
-          acc[e.date] = (acc[e.date] || 0) + e.amount;
-          return acc;
-        }, {})
-      )
+    ? Object.entries(dailyTotals)
         .map(([date, amount]) => ({
           date: formatDate(date),
           amount,
@@ -111,6 +201,8 @@ export default function ChartPanel({ project, selectedDate }: Props) {
 
   return (
     <div className="space-y-4">
+      {viewTabs}
+
       {/* 카테고리별 파이 차트 */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
         <h3 className="font-bold text-gray-900 text-sm mb-4">카테고리별 지출</h3>
@@ -178,7 +270,7 @@ export default function ChartPanel({ project, selectedDate }: Props) {
       {memberData.length > 0 && (
         <div className="bg-white rounded-2xl border border-gray-100 p-5">
           <h3 className="font-bold text-gray-900 text-sm mb-4">
-            멤버별 결제 금액
+            {viewMode === "personal" ? "멤버별 개인 지출" : "멤버별 결제 금액"}
           </h3>
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
@@ -198,7 +290,10 @@ export default function ChartPanel({ project, selectedDate }: Props) {
                   }
                 />
                 <Tooltip
-                  formatter={(value: number) => [formatAmount(value), "결제 금액"]}
+                  formatter={(value: number) => [
+                    formatAmount(value),
+                    viewMode === "personal" ? "개인 지출" : "결제 금액",
+                  ]}
                   contentStyle={{
                     borderRadius: "12px",
                     border: "1px solid #f3f4f6",
@@ -277,7 +372,9 @@ export default function ChartPanel({ project, selectedDate }: Props) {
           })()}
         </div>
         <div className="bg-amber-50 rounded-2xl p-4">
-          <p className="text-xs text-amber-600 font-medium mb-1">가장 많이 결제</p>
+          <p className="text-xs text-amber-600 font-medium mb-1">
+            {viewMode === "personal" ? "개인 지출 최다" : "가장 많이 결제"}
+          </p>
           {memberData[0] && (
             <>
               <p className="text-lg font-bold text-amber-700">

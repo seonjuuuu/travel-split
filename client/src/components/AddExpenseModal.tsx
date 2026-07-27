@@ -46,6 +46,7 @@ export default function AddExpenseModal({
   const addExpense = trpc.expenses.add.useMutation({ onSuccess: invalidateAndClose });
   const updateExpense = trpc.expenses.update.useMutation({ onSuccess: invalidateAndClose });
   const travelDates = getDatesInRange(project.startDate, project.endDate);
+  const todayStr = new Date().toISOString().split("T")[0];
 
   const {
     ref: dateScrollRef,
@@ -134,7 +135,7 @@ export default function AddExpenseModal({
     if (!form.title.trim()) errs.title = "지출 내용을 입력해주세요";
     if (!form.amount || isNaN(Number(form.amount)) || Number(form.amount) <= 0)
       errs.amount = "올바른 금액을 입력해주세요";
-    if (!isSharedCost && !form.payerId) errs.payerId = "결제자를 선택해주세요";
+    if (!isSharedCost && !isPersonal && !form.payerId) errs.payerId = "결제자를 선택해주세요";
     if (!isSharedCost && !isPersonal && form.participantIds.length === 0)
       errs.participantIds = "분담 멤버를 1명 이상 선택해주세요";
     if (!isPreTrip && !form.date) errs.date = "날짜를 선택해주세요";
@@ -257,11 +258,16 @@ export default function AddExpenseModal({
             <div className="space-y-2">
               <Label className="text-sm font-medium text-gray-700">날짜</Label>
               <div className="relative min-w-0">
-                {dateCanScrollLeft && (
+                {travelDates.length > 4 && (
                   <button
                     type="button"
                     onClick={scrollDatesLeft}
-                    className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-6 h-6 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-400 hover:text-gray-600"
+                    disabled={!dateCanScrollLeft}
+                    className={`absolute left-0 top-1/2 -translate-y-1/2 z-10 w-6 h-6 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center transition-opacity ${
+                      dateCanScrollLeft
+                        ? "text-gray-400 hover:text-gray-600"
+                        : "text-gray-200 opacity-40 cursor-default"
+                    }`}
                     aria-label="이전 날짜 보기"
                   >
                     <ChevronLeft className="w-3.5 h-3.5" />
@@ -269,34 +275,45 @@ export default function AddExpenseModal({
                 )}
                 <div
                   ref={dateScrollRef}
-                  className={`flex gap-2 overflow-x-auto pb-1 scrollbar-hide cursor-grab active:cursor-grabbing ${dateCanScrollLeft ? "pl-7" : ""} ${dateCanScrollRight ? "pr-7" : ""}`}
+                  className={`flex gap-2 overflow-x-auto pb-1 scrollbar-hide cursor-grab active:cursor-grabbing touch-pan-x ${travelDates.length > 4 ? "pl-7 pr-7" : ""}`}
                 >
-                  {travelDates.map((date, idx) => (
-                    <button
-                      key={date}
-                      type="button"
-                      onClick={() => setForm({ ...form, date })}
-                      className={`shrink-0 flex flex-col items-center gap-0.5 w-12 py-2 rounded-xl transition-all ${
-                        form.date === date
-                          ? "bg-indigo-600 text-white"
-                          : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                      }`}
-                    >
-                      <span className="text-[10px] font-medium opacity-70">
-                        {formatDayOfWeek(date)}
-                      </span>
-                      <span className="text-sm font-bold leading-none">
-                        {new Date(date).getDate()}
-                      </span>
-                      <span className="text-[9px] opacity-60">{idx + 1}일</span>
-                    </button>
-                  ))}
+                  {travelDates.map((date, idx) => {
+                    const isSelected = form.date === date;
+                    const isToday = date === todayStr;
+                    return (
+                      <button
+                        key={date}
+                        type="button"
+                        onClick={() => setForm({ ...form, date })}
+                        className={`shrink-0 flex flex-col items-center gap-0.5 w-12 py-2 rounded-xl transition-all ${
+                          isSelected
+                            ? "bg-indigo-600 text-white"
+                            : isToday
+                              ? "bg-indigo-50 text-indigo-600 border border-indigo-200"
+                              : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                        }`}
+                      >
+                        <span className="text-[10px] font-medium opacity-70">
+                          {formatDayOfWeek(date)}
+                        </span>
+                        <span className="text-sm font-bold leading-none">
+                          {new Date(date).getDate()}
+                        </span>
+                        <span className="text-[9px] opacity-60">{idx + 1}일</span>
+                      </button>
+                    );
+                  })}
                 </div>
-                {dateCanScrollRight && (
+                {travelDates.length > 4 && (
                   <button
                     type="button"
                     onClick={scrollDatesRight}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-6 h-6 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-400 hover:text-gray-600"
+                    disabled={!dateCanScrollRight}
+                    className={`absolute right-0 top-1/2 -translate-y-1/2 z-10 w-6 h-6 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center transition-opacity ${
+                      dateCanScrollRight
+                        ? "text-gray-400 hover:text-gray-600"
+                        : "text-gray-200 opacity-40 cursor-default"
+                    }`}
                     aria-label="다음 날짜 보기"
                   >
                     <ChevronRight className="w-3.5 h-3.5" />
@@ -423,6 +440,14 @@ export default function AddExpenseModal({
                 <div>
                   <p className="text-sm font-semibold text-emerald-700">공동경비로 처리</p>
                   <p className="text-xs text-emerald-600">정산 없이 공동으로 부담한 비용이에요</p>
+                </div>
+              </div>
+            ) : isPersonal ? (
+              <div className="flex items-center gap-2 px-4 py-3 bg-violet-50 rounded-xl border border-violet-200">
+                <User className="w-4.5 h-4.5 text-violet-600" />
+                <div>
+                  <p className="text-sm font-semibold text-violet-700">본인 지출로 자동 기록</p>
+                  <p className="text-xs text-violet-600">개인경비는 결제자를 따로 고를 필요 없이 항상 본인 지출로 기록돼요</p>
                 </div>
               </div>
             ) : (

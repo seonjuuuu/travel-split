@@ -149,6 +149,11 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
                     <Users className="w-3 h-3" />
                     공동경비
                   </span>
+                ) : isPersonalCard ? (
+                  <span className="flex items-center gap-1 text-violet-600 font-medium">
+                    <User className="w-3 h-3" />
+                    개인경비
+                  </span>
                 ) : payer ? (
                   <div className="flex items-center gap-1">
                     <span className="font-medium" style={{ color: payer.color }}>{payer.name}</span>

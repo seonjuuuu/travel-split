@@ -16,6 +16,7 @@ import {
   Plus,
   Share2,
   Shield,
+  Ticket,
   Trash2,
   Users,
   Wallet,
@@ -24,6 +25,7 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import CreateProjectModal from "@/components/CreateProjectModal";
+import JoinByCodeModal from "@/components/JoinByCodeModal";
 
 // ── 트립스플릿 로고 SVG ──────────────────────────────────────────────
 function TripSplitLogo({ size = 32 }: { size?: number }) {
@@ -77,6 +79,7 @@ export default function Home() {
   const [, navigate] = useLocation();
   const { user, loading, isAuthenticated, logout } = useAuth();
   const [showCreate, setShowCreate] = useState(false);
+  const [showJoinByCode, setShowJoinByCode] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   useEffect(() => {
@@ -128,6 +131,13 @@ export default function Home() {
                 </div>
                 <span className="text-sm text-[#5B6B72]">{user?.name}</span>
               </div>
+              <button
+                onClick={() => setShowJoinByCode(true)}
+                className="bg-[#EDEFE7] hover:bg-[#E4E6DF] text-[#12222D] rounded-sm px-4 h-9 text-sm font-medium flex items-center gap-1.5 transition-colors"
+              >
+                <Ticket className="w-4 h-4" />
+                초대 코드
+              </button>
               <button
                 onClick={() => setShowCreate(true)}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-sm px-4 h-9 text-sm font-medium flex items-center gap-1.5 transition-colors"
@@ -278,6 +288,7 @@ export default function Home() {
           onClose={() => setShowCreate(false)}
           onCreated={() => refetch()}
         />
+        <JoinByCodeModal open={showJoinByCode} onClose={() => setShowJoinByCode(false)} />
       </div>
     );
   }
