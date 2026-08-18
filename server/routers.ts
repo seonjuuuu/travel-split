@@ -1,7 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { customAlphabet, nanoid } from "nanoid";
 import { z } from "zod";
-import type { DbExpense } from "../drizzle/schema";
+import type { DbExpense, DbTodo } from "../drizzle/schema";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import {
@@ -9,9 +9,11 @@ import {
   createExpense,
   createMember,
   createProject,
+  createTodo,
   deleteExpense,
   deleteMember,
   deleteProject,
+  deleteTodo,
   getExpenseById,
   getExpensesByProjectId,
   getMemberById,
@@ -20,6 +22,8 @@ import {
   getProjectByEditToken,
   getProjectByShareToken,
   getProjectsForUser,
+  getTodoById,
+  getTodosByProjectId,
   getUnclaimedMembers,
   isInviteCodeTaken,
   setProjectEditToken,
@@ -27,6 +31,7 @@ import {
   updateExpense,
   updateMember,
   updateProject,
+  updateTodo,
 } from "./db";
 
 const CategoryEnum = z.enum(["식비", "교통", "숙박", "관광", "쇼핑", "기타"]);
@@ -70,6 +75,14 @@ function mapExpenseRow(e: DbExpense) {
   };
 }
 
+function mapTodoRow(t: DbTodo) {
+  return {
+    ...t,
+    assigneeIds: JSON.parse(t.assigneeIds || "[]") as string[],
+    isDone: Boolean(t.isDone),
+  };
+}
+
 export const appRouter = router({
   system: systemRouter,
 
@@ -101,8 +114,11 @@ export const appRouter = router({
       .query(async ({ ctx, input }) => {
         const access = await getProjectAccess(input.id, ctx.user.id);
         if (!access) return null;
-        const members = await getMembersByProjectId(input.id);
-        const expenseRows = await getExpensesByProjectId(input.id);
+        const [members, expenseRows, todoRows] = await Promise.all([
+          getMembersByProjectId(input.id),
+          getExpensesByProjectId(input.id),
+          getTodosByProjectId(input.id),
+        ]);
         return {
           ...access.project,
           members,
@@ -110,6 +126,7 @@ export const appRouter = router({
           expenses: expenseRows
             .filter((e) => !Boolean(e.isPersonal) || e.payerId === access.memberId)
             .map(mapExpenseRow),
+          todos: todoRows.map(mapTodoRow),
         };
       }),
 
@@ -407,6 +424,60 @@ export const appRouter = router({
         if (!expense) throw new TRPCError({ code: "NOT_FOUND", message: "지출을 찾을 수 없습니다" });
         await assertProjectAccess(expense.projectId, ctx.user.id);
         await deleteExpense(input.id);
+        return { success: true };
+      }),
+  }),
+
+  // ── 할일 ─────────────────────────────────────────────────────────
+  todos: router({
+    add: protectedProcedure
+      .input(
+        z.object({
+          projectId: z.string(),
+          title: z.string().min(1),
+          assigneeIds: z.array(z.string()).default([]),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        await assertProjectAccess(input.projectId, ctx.user.id);
+        const id = nanoid();
+        return createTodo({
+          id,
+          projectId: input.projectId,
+          title: input.title,
+          assigneeIds: JSON.stringify(input.assigneeIds),
+          isDone: false,
+        });
+      }),
+
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.string(),
+          title: z.string().min(1).optional(),
+          assigneeIds: z.array(z.string()).optional(),
+          isDone: z.boolean().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const todo = await getTodoById(input.id);
+        if (!todo) throw new TRPCError({ code: "NOT_FOUND", message: "할일을 찾을 수 없습니다" });
+        await assertProjectAccess(todo.projectId, ctx.user.id);
+        const { id, assigneeIds, ...rest } = input;
+        await updateTodo(id, {
+          ...rest,
+          ...(assigneeIds !== undefined ? { assigneeIds: JSON.stringify(assigneeIds) } : {}),
+        });
+        return { success: true };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const todo = await getTodoById(input.id);
+        if (!todo) throw new TRPCError({ code: "NOT_FOUND", message: "할일을 찾을 수 없습니다" });
+        await assertProjectAccess(todo.projectId, ctx.user.id);
+        await deleteTodo(input.id);
         return { success: true };
       }),
   }),

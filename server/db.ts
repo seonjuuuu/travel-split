@@ -4,9 +4,11 @@ import postgres from "postgres";
 import {
   expenses,
   InsertExpense,
+  InsertTodo,
   InsertTravelProject,
   profiles,
   projectMembers,
+  todos,
   travelProjects,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -291,4 +293,40 @@ export async function deleteExpense(id: string) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db.delete(expenses).where(eq(expenses.id, id));
+}
+
+// ── 할일 ─────────────────────────────────────────────────────────
+export async function getTodosByProjectId(projectId: string) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(todos).where(eq(todos.projectId, projectId));
+}
+
+export async function getTodoById(id: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(todos).where(eq(todos.id, id)).limit(1);
+  return rows[0];
+}
+
+export async function createTodo(data: InsertTodo) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.insert(todos).values(data);
+  return data;
+}
+
+export async function updateTodo(
+  id: string,
+  data: Partial<{ title: string; assigneeIds: string; isDone: boolean }>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(todos).set({ ...data, updatedAt: new Date() }).where(eq(todos.id, id));
+}
+
+export async function deleteTodo(id: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(todos).where(eq(todos.id, id));
 }

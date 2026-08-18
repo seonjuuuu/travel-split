@@ -132,6 +132,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         endDate: data.endDate,
         members: [myMember],
         expenses: [],
+        todos: [],
         createdAt: new Date().toISOString(),
       };
       setProjects((prev) => [...prev, project]);

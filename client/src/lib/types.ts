@@ -85,6 +85,16 @@ export interface Expense {
   isPersonal?: boolean; // 개인경비 - 정산 제외, 결제자 본인의 지출로만 기록
 }
 
+export interface Todo {
+  id: string;
+  projectId: string;
+  title: string;
+  assigneeIds: string[];
+  isDone: boolean;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+}
+
 export interface TravelProject {
   id: string;
   name: string;
@@ -93,6 +103,7 @@ export interface TravelProject {
   endDate: string; // YYYY-MM-DD
   members: Member[];
   expenses: Expense[];
+  todos: Todo[];
   createdAt: string | Date;
   updatedAt?: string | Date;
   userId?: string;

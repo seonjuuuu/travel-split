@@ -91,3 +91,17 @@ export const expenses = pgTable("expenses", {
 
 export type DbExpense = typeof expenses.$inferSelect;
 export type InsertExpense = typeof expenses.$inferInsert;
+
+// ── 할일 테이블 ────────────────────────────────────────────────
+export const todos = pgTable("todos", {
+  id: varchar("id", { length: 36 }).primaryKey(), // nanoid
+  projectId: varchar("projectId", { length: 36 }).notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  assigneeIds: varchar("assigneeIds", { length: 2000 }).notNull().default("[]"), // JSON array of projectMembers.id (빈 배열이면 담당자 미지정)
+  isDone: boolean("isDone").default(false).notNull(),
+  createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type DbTodo = typeof todos.$inferSelect;
+export type InsertTodo = typeof todos.$inferInsert;

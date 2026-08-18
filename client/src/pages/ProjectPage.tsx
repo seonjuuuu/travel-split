@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Plus, Users, BarChart3, Receipt, Calculator,
   Settings, MapPin, CalendarDays, Grid3X3, Plane, User, UserPlus,
-  Share2, Copy, Check, X, Link, ChevronLeft, ChevronRight,
+  Share2, Copy, Check, X, Link, ChevronLeft, ChevronRight, ListTodo,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDragScroll } from "@/hooks/useDragScroll";
@@ -18,11 +18,12 @@ import InviteModal from "@/components/InviteModal";
 import MembersPanel from "@/components/MembersPanel";
 import SettlementPanel from "@/components/SettlementPanel";
 import ChartPanel from "@/components/ChartPanel";
+import TodoPanel from "@/components/TodoPanel";
 import ProjectSettingsModal from "@/components/ProjectSettingsModal";
 import CalendarView from "@/components/CalendarView";
 import { toast } from "sonner";
 
-type Tab = "expenses" | "chart" | "settlement";
+type Tab = "expenses" | "chart" | "settlement" | "todos";
 type DateViewMode = "pills" | "calendar";
 
 export default function ProjectPage() {
@@ -196,10 +197,12 @@ export default function ProjectPage() {
     : null;
   const totalExpense = project.expenses.reduce((s, e) => s + e.amount, 0);
 
+  const pendingTodoCount = project.todos.filter((t) => !t.isDone).length;
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "expenses", label: "지출 목록", icon: <Receipt className="w-4 h-4" /> },
     { id: "chart", label: "그래프", icon: <BarChart3 className="w-4 h-4" /> },
     { id: "settlement", label: "정산", icon: <Calculator className="w-4 h-4" /> },
+    { id: "todos", label: "할일", icon: <ListTodo className="w-4 h-4" /> },
   ];
 
   const currentShareToken = shareToken || project.shareToken;
@@ -353,8 +356,13 @@ export default function ProjectPage() {
         <div className="flex gap-1 bg-[#EDEFE7] rounded-sm p-1">
           {tabs.map((tab) => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-sm text-sm font-medium transition-all ${activeTab === tab.id ? "bg-[#F6F7F2] text-indigo-600 shadow-sm" : "text-[#5B6B72] hover:text-[#12222D]"}`}>
+              className={`relative flex-1 flex items-center justify-center gap-1.5 py-2 rounded-sm text-sm font-medium transition-all ${activeTab === tab.id ? "bg-[#F6F7F2] text-indigo-600 shadow-sm" : "text-[#5B6B72] hover:text-[#12222D]"}`}>
               {tab.icon}<span className="hidden sm:inline">{tab.label}</span>
+              {tab.id === "todos" && pendingTodoCount > 0 && (
+                <span className="absolute top-0.5 right-2 sm:relative sm:top-0 sm:right-0 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                  {pendingTodoCount}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -473,6 +481,7 @@ export default function ProjectPage() {
             {activeTab === "expenses" && <ExpenseList project={project} expenses={filteredExpenses} selectedDate={selectedDate} selectedMemberId={selectedMemberId} onRefresh={refetch} />}
             {activeTab === "chart" && <ChartPanel project={project} selectedDate={selectedDate} />}
             {activeTab === "settlement" && <SettlementPanel project={project} />}
+            {activeTab === "todos" && <TodoPanel project={project} />}
           </motion.div>
         </AnimatePresence>
       </div>
