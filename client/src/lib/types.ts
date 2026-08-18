@@ -98,6 +98,7 @@ export interface TravelProject {
   userId?: string;
   shareToken?: string | null;
   editToken?: string | null;
+  inviteCode?: string | null;
 }
 
 export interface Settlement {

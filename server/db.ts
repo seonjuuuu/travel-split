@@ -1,4 +1,4 @@
-import { and, eq, exists, isNull } from "drizzle-orm";
+import { and, eq, exists, isNull, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import {
@@ -145,22 +145,44 @@ export async function setProjectShareToken(id: string, userId: string, token: st
 }
 
 // ── 초대 토큰 (가입해서 공동 편집, 소유자만 발급/해제 가능) ──────────
-export async function setProjectEditToken(id: string, userId: string, token: string | null) {
+export async function setProjectEditToken(
+  id: string,
+  userId: string,
+  token: string | null,
+  inviteCode: string | null
+) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   await db
     .update(travelProjects)
-    .set({ editToken: token, updatedAt: new Date() })
+    .set({ editToken: token, inviteCode, updatedAt: new Date() })
     .where(and(eq(travelProjects.id, id), eq(travelProjects.userId, userId)));
 }
 
-export async function getProjectByEditToken(token: string) {
+export async function isInviteCodeTaken(code: string) {
+  const db = await getDb();
+  if (!db) return false;
+  const rows = await db
+    .select({ id: travelProjects.id })
+    .from(travelProjects)
+    .where(eq(travelProjects.inviteCode, code))
+    .limit(1);
+  return rows.length > 0;
+}
+
+// 초대 링크 토큰이든 짧은 초대 코드든 같은 초대를 가리키므로 둘 다 조회 가능해야 한다.
+export async function getProjectByEditToken(tokenOrCode: string) {
   const db = await getDb();
   if (!db) return undefined;
   const rows = await db
     .select()
     .from(travelProjects)
-    .where(eq(travelProjects.editToken, token))
+    .where(
+      or(
+        eq(travelProjects.editToken, tokenOrCode),
+        eq(travelProjects.inviteCode, tokenOrCode)
+      )
+    )
     .limit(1);
   return rows[0];
 }

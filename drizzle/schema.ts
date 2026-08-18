@@ -48,6 +48,7 @@ export const travelProjects = pgTable("travel_projects", {
   myName: varchar("myName", { length: 50 }).notNull().default("나"),
   shareToken: varchar("shareToken", { length: 32 }), // 읽기 전용 공유 링크 토큰 (null이면 비활성)
   editToken: varchar("editToken", { length: 32 }), // 가입해서 공동 편집하는 초대 링크 토큰 (null이면 비활성)
+  inviteCode: varchar("inviteCode", { length: 8 }).unique(), // editToken과 같이 발급/해제되는 짧은 초대 코드 (null이면 비활성)
   createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updatedAt", { withTimezone: true }).defaultNow().notNull(),
 });

@@ -15,7 +15,8 @@ interface Props {
 
 export default function InviteModal({ open, onClose, project }: Props) {
   const utils = trpc.useUtils();
-  const [copied, setCopied] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   const enableEditInviteMutation = trpc.projects.enableEditInvite.useMutation({
     onSuccess: () => utils.projects.get.invalidate({ id: project.id }),
@@ -28,13 +29,25 @@ export default function InviteModal({ open, onClose, project }: Props) {
     ? `${window.location.origin}/join/${project.editToken}`
     : null;
 
-  const handleCopy = async () => {
+  const handleCopyCode = async () => {
+    if (!project.inviteCode) return;
+    try {
+      await navigator.clipboard.writeText(project.inviteCode);
+      setCopiedCode(true);
+      toast.success("초대 코드가 복사되었습니다!");
+      setTimeout(() => setCopiedCode(false), 2000);
+    } catch {
+      toast.error("복사에 실패했습니다");
+    }
+  };
+
+  const handleCopyLink = async () => {
     if (!inviteUrl) return;
     try {
       await navigator.clipboard.writeText(inviteUrl);
-      setCopied(true);
+      setCopiedLink(true);
       toast.success("초대 링크가 복사되었습니다!");
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopiedLink(false), 2000);
     } catch {
       toast.error("복사에 실패했습니다");
     }
@@ -75,29 +88,57 @@ export default function InviteModal({ open, onClose, project }: Props) {
           (읽기 전용 공유와는 달라요 — 그건 상단 공유 아이콘에서 따로 할 수 있습니다.)
         </p>
 
-        {inviteUrl ? (
-          <div className="space-y-2">
-            <div className="bg-[#EDEFE7] rounded-sm p-3 flex items-center gap-2">
-              <Link2 className="w-4 h-4 text-gray-400 shrink-0" />
-              <span className="tix-mono text-xs text-gray-600 flex-1 truncate">{inviteUrl}</span>
+        {inviteUrl && project.inviteCode ? (
+          <div className="space-y-3">
+            <div>
+              <p className="text-[10px] tracking-[0.12em] uppercase text-[#5B6B72] mb-1.5">초대 코드</p>
+              <div className="flex gap-2">
+                <div className="flex-1 bg-[#EDEFE7] rounded-sm px-3 py-2.5 flex items-center justify-center">
+                  <span className="tix-mono text-lg font-bold text-[#12222D] tracking-[0.2em]">
+                    {project.inviteCode}
+                  </span>
+                </div>
+                <Button
+                  onClick={handleCopyCode}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-sm gap-2 px-4"
+                >
+                  {copiedCode ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {copiedCode ? "복사됨" : "복사"}
+                </Button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Button
-                onClick={handleCopy}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-sm gap-2"
-              >
-                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                {copied ? "복사됨" : "링크 복사"}
-              </Button>
-              <Button
-                onClick={() => disableEditInviteMutation.mutate({ id: project.id })}
-                disabled={disableEditInviteMutation.isPending}
-                variant="outline"
-                className="rounded-sm border-gray-200 text-gray-500 px-3"
-                title="초대 링크 비활성화"
-              >
-                <X className="w-4 h-4" />
-              </Button>
+
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-[#12222D]/10" />
+              <span className="text-xs text-[#5B6B72]">또는</span>
+              <div className="flex-1 h-px bg-[#12222D]/10" />
+            </div>
+
+            <div>
+              <p className="text-[10px] tracking-[0.12em] uppercase text-[#5B6B72] mb-1.5">초대 링크</p>
+              <div className="bg-[#EDEFE7] rounded-sm p-3 flex items-center gap-2 mb-2">
+                <Link2 className="w-4 h-4 text-gray-400 shrink-0" />
+                <span className="tix-mono text-xs text-gray-600 flex-1 truncate">{inviteUrl}</span>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleCopyLink}
+                  variant="outline"
+                  className="flex-1 rounded-sm border-gray-200 text-gray-600 gap-2"
+                >
+                  {copiedLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {copiedLink ? "복사됨" : "링크 복사"}
+                </Button>
+                <Button
+                  onClick={() => disableEditInviteMutation.mutate({ id: project.id })}
+                  disabled={disableEditInviteMutation.isPending}
+                  variant="outline"
+                  className="rounded-sm border-gray-200 text-gray-500 px-3"
+                  title="초대 비활성화"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </div>
         ) : (
@@ -107,7 +148,7 @@ export default function InviteModal({ open, onClose, project }: Props) {
             className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-sm gap-2"
           >
             <Link2 className="w-4 h-4" />
-            초대 링크 만들기
+            초대 코드 만들기
           </Button>
         )}
       </motion.div>

@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { nanoid } from "nanoid";
+import { customAlphabet, nanoid } from "nanoid";
 import { z } from "zod";
 import type { DbExpense } from "../drizzle/schema";
 import { systemRouter } from "./_core/systemRouter";
@@ -21,6 +21,7 @@ import {
   getProjectByShareToken,
   getProjectsForUser,
   getUnclaimedMembers,
+  isInviteCodeTaken,
   setProjectEditToken,
   setProjectShareToken,
   updateExpense,
@@ -37,6 +38,17 @@ const MEMBER_COLORS = [
 function pickNextColor(usedColors: string[]): string {
   const available = MEMBER_COLORS.filter((c) => !usedColors.includes(c));
   return available.length > 0 ? available[0] : MEMBER_COLORS[usedColors.length % MEMBER_COLORS.length];
+}
+
+// 헷갈리는 문자(0/O, 1/I/L 등) 제외한 6자리 초대 코드
+const generateInviteCode = customAlphabet("ABCDEFGHJKMNPQRSTUVWXYZ23456789", 6);
+
+async function generateUniqueInviteCode(): Promise<string> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = generateInviteCode();
+    if (!(await isInviteCodeTaken(code))) return code;
+  }
+  throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "초대 코드 생성에 실패했습니다. 다시 시도해주세요" });
 }
 
 // 소유자든 초대받은 협업자든 동일한 규칙으로 접근 권한을 확인한다.
@@ -197,19 +209,20 @@ export const appRouter = router({
         };
       }),
 
-    // 가입해서 공동 편집하는 초대 링크 생성/해제 (소유자 전용)
+    // 가입해서 공동 편집하는 초대 링크 + 짧은 초대 코드 생성/해제 (소유자 전용)
     enableEditInvite: protectedProcedure
       .input(z.object({ id: z.string() }))
       .mutation(async ({ ctx, input }) => {
         const token = nanoid(24);
-        await setProjectEditToken(input.id, ctx.user.id, token);
-        return { token };
+        const code = await generateUniqueInviteCode();
+        await setProjectEditToken(input.id, ctx.user.id, token, code);
+        return { token, code };
       }),
 
     disableEditInvite: protectedProcedure
       .input(z.object({ id: z.string() }))
       .mutation(async ({ ctx, input }) => {
-        await setProjectEditToken(input.id, ctx.user.id, null);
+        await setProjectEditToken(input.id, ctx.user.id, null, null);
         return { success: true };
       }),
 
