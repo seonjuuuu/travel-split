@@ -9,7 +9,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import type { TravelProject } from "@/lib/types";
 import { MEMBER_COLORS, MEMBER_COLOR_NAMES, getNextMemberColor } from "@/lib/types";
-import { Plus, Trash2, Crown, UserPlus, Check, Palette, Pencil } from "lucide-react";
+import { Plus, Trash2, Crown, UserPlus, Check, Palette, Pencil, Clock } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -177,9 +177,11 @@ export default function MembersPanel({ open, onClose, project, onRefresh, newMem
               {project.members.map((m) => (
                 <div
                   key={m.id}
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold border-2 border-white/30"
+                  className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold border-2 ${
+                    m.profileId ? "border-white/30" : "border-dashed border-white/50 opacity-60"
+                  }`}
                   style={{ backgroundColor: m.color }}
-                  title={m.name}
+                  title={m.profileId ? m.name : `${m.name} (미참여)`}
                 >
                   {m.name[0]}
                 </div>
@@ -208,7 +210,9 @@ export default function MembersPanel({ open, onClose, project, onRefresh, newMem
                     {/* 아바타 */}
                     <div className="relative shrink-0">
                       <div
-                        className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-base shadow-sm"
+                        className={`w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-base shadow-sm ${
+                          member.profileId ? "" : "border-2 border-dashed border-white opacity-60"
+                        }`}
                         style={{ backgroundColor: member.color }}
                       >
                         {member.name[0]}
@@ -276,6 +280,12 @@ export default function MembersPanel({ open, onClose, project, onRefresh, newMem
                             >
                               {MEMBER_COLOR_NAMES[member.color] ?? ""}
                             </span>
+                            {!member.profileId && (
+                              <span className="flex items-center gap-0.5 text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full font-medium">
+                                <Clock className="w-2.5 h-2.5" />
+                                미참여
+                              </span>
+                            )}
                           </div>
                           <p className="text-xs text-gray-400 mt-0.5">
                             총 {totalPaid.toLocaleString()}원 결제
