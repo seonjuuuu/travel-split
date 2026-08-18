@@ -94,7 +94,7 @@ export default function Home() {
     }
   }, []);
 
-  const { data: projects = [], refetch } = trpc.projects.list.useQuery(undefined, {
+  const { data: projects = [], refetch, isLoading: projectsLoading } = trpc.projects.list.useQuery(undefined, {
     enabled: isAuthenticated,
   });
 
@@ -157,12 +157,12 @@ export default function Home() {
         </header>
 
         <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
-          {loading && (
+          {(loading || projectsLoading) && (
             <div className="flex items-center justify-center py-32">
               <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
             </div>
           )}
-          {!loading && (
+          {!loading && !projectsLoading && (
             <>
               {projects.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-24 text-center">
