@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { customAlphabet, nanoid } from "nanoid";
 import { z } from "zod";
 import type { DbExpense, DbTodo } from "../drizzle/schema";
-import { sendTodoAssignedEmail } from "./_core/mail";
+import { sendMemberJoinedEmail, sendTodoAssignedEmail } from "./_core/mail";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import {
@@ -100,6 +100,32 @@ async function notifyTodoAssignees(
         });
       } catch (error) {
         console.warn("[Todos] Failed to send assignment email:", error);
+      }
+    })
+  );
+}
+
+// 새 멤버 참여를 이미 계정 연결된(참여 중인) 다른 멤버들한테 이메일로 알림
+async function notifyMemberJoined(
+  memberIds: string[],
+  info: { projectId: string; projectName: string; joinedMemberName: string }
+) {
+  await Promise.all(
+    memberIds.map(async (memberId) => {
+      const member = await getMemberById(memberId);
+      if (!member?.profileId) return;
+      const profile = await getProfileById(member.profileId);
+      if (!profile?.email) return;
+      try {
+        await sendMemberJoinedEmail({
+          to: profile.email,
+          recipientName: member.name,
+          joinedMemberName: info.joinedMemberName,
+          projectId: info.projectId,
+          projectName: info.projectName,
+        });
+      } catch (error) {
+        console.warn("[Members] Failed to send join notification email:", error);
       }
     })
   );
@@ -313,6 +339,8 @@ export const appRouter = router({
         const existingAccess = await getProjectAccess(project.id, ctx.user.id);
         if (existingAccess) return { projectId: project.id };
 
+        let joinedMemberName: string;
+
         if (input.memberId) {
           const unclaimed = await getUnclaimedMembers(project.id);
           const target = unclaimed.find((m) => m.id === input.memberId);
@@ -320,6 +348,7 @@ export const appRouter = router({
             throw new TRPCError({ code: "BAD_REQUEST", message: "선택한 멤버를 찾을 수 없습니다" });
           }
           await claimMember(input.memberId, ctx.user.id);
+          joinedMemberName = target.name;
         } else if (input.newMemberName) {
           const existingMembers = await getMembersByProjectId(project.id);
           const color = pickNextColor(existingMembers.map((m) => m.color));
@@ -331,8 +360,22 @@ export const appRouter = router({
             color,
             profileId: ctx.user.id,
           });
+          joinedMemberName = input.newMemberName;
         } else {
           throw new TRPCError({ code: "BAD_REQUEST", message: "참여할 멤버를 선택하거나 이름을 입력해주세요" });
+        }
+
+        // 이미 참여 중인(계정 연결된) 다른 멤버들한테 새 멤버 참여 알림 이메일
+        const membersAfterJoin = await getMembersByProjectId(project.id);
+        const notifyMemberIds = membersAfterJoin
+          .filter((m) => m.profileId && m.profileId !== ctx.user.id)
+          .map((m) => m.id);
+        if (notifyMemberIds.length > 0) {
+          void notifyMemberJoined(notifyMemberIds, {
+            projectId: project.id,
+            projectName: project.name,
+            joinedMemberName,
+          });
         }
 
         return { projectId: project.id };

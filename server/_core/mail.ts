@@ -64,3 +64,27 @@ export async function sendTodoAssignedEmail(params: {
   `;
   return sendMail(to, `[${projectName}] 새 할일: ${todoTitle}`, html);
 }
+
+export async function sendMemberJoinedEmail(params: {
+  to: string;
+  recipientName: string;
+  joinedMemberName: string;
+  projectId: string;
+  projectName: string;
+}) {
+  const { to, recipientName, joinedMemberName, projectId, projectName } = params;
+  const projectUrl = `${ENV.appUrl}/project/${projectId}`;
+  const html = `
+    <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      <p style="color: #5B6B72; font-size: 13px; margin-bottom: 4px;">TRIP · SPLIT</p>
+      <h2 style="color: #12222D; margin: 0 0 16px;">${recipientName}님, 새 멤버가 참여했어요</h2>
+      <p style="color: #12222D; font-size: 15px; line-height: 1.6;">
+        <strong>${joinedMemberName}</strong>님이 <strong>${projectName}</strong> 여행에 합류해서 같이 지출을 기록할 수 있게 됐어요.
+      </p>
+      <a href="${projectUrl}" style="display: inline-block; background: #4f46e5; color: #fff; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600;">
+        여행 페이지에서 확인하기
+      </a>
+    </div>
+  `;
+  return sendMail(to, `[${projectName}] ${joinedMemberName}님이 참여했어요`, html);
+}

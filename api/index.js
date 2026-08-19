@@ -75,6 +75,23 @@ async function sendTodoAssignedEmail(params) {
   `;
   return sendMail(to, `[${projectName}] \uC0C8 \uD560\uC77C: ${todoTitle}`, html);
 }
+async function sendMemberJoinedEmail(params) {
+  const { to, recipientName, joinedMemberName, projectId, projectName } = params;
+  const projectUrl = `${ENV.appUrl}/project/${projectId}`;
+  const html = `
+    <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      <p style="color: #5B6B72; font-size: 13px; margin-bottom: 4px;">TRIP \xB7 SPLIT</p>
+      <h2 style="color: #12222D; margin: 0 0 16px;">${recipientName}\uB2D8, \uC0C8 \uBA64\uBC84\uAC00 \uCC38\uC5EC\uD588\uC5B4\uC694</h2>
+      <p style="color: #12222D; font-size: 15px; line-height: 1.6;">
+        <strong>${joinedMemberName}</strong>\uB2D8\uC774 <strong>${projectName}</strong> \uC5EC\uD589\uC5D0 \uD569\uB958\uD574\uC11C \uAC19\uC774 \uC9C0\uCD9C\uC744 \uAE30\uB85D\uD560 \uC218 \uC788\uAC8C \uB410\uC5B4\uC694.
+      </p>
+      <a href="${projectUrl}" style="display: inline-block; background: #4f46e5; color: #fff; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600;">
+        \uC5EC\uD589 \uD398\uC774\uC9C0\uC5D0\uC11C \uD655\uC778\uD558\uAE30
+      </a>
+    </div>
+  `;
+  return sendMail(to, `[${projectName}] ${joinedMemberName}\uB2D8\uC774 \uCC38\uC5EC\uD588\uC5B4\uC694`, html);
+}
 
 // server/_core/systemRouter.ts
 import { z } from "zod";
@@ -597,6 +614,27 @@ async function notifyTodoAssignees(memberIds, info) {
     })
   );
 }
+async function notifyMemberJoined(memberIds, info) {
+  await Promise.all(
+    memberIds.map(async (memberId) => {
+      const member = await getMemberById(memberId);
+      if (!member?.profileId) return;
+      const profile = await getProfileById(member.profileId);
+      if (!profile?.email) return;
+      try {
+        await sendMemberJoinedEmail({
+          to: profile.email,
+          recipientName: member.name,
+          joinedMemberName: info.joinedMemberName,
+          projectId: info.projectId,
+          projectName: info.projectName
+        });
+      } catch (error) {
+        console.warn("[Members] Failed to send join notification email:", error);
+      }
+    })
+  );
+}
 function mapTodoRow(t2) {
   return {
     ...t2,
@@ -758,6 +796,7 @@ var appRouter = router({
       }
       const existingAccess = await getProjectAccess(project.id, ctx.user.id);
       if (existingAccess) return { projectId: project.id };
+      let joinedMemberName;
       if (input.memberId) {
         const unclaimed = await getUnclaimedMembers(project.id);
         const target = unclaimed.find((m) => m.id === input.memberId);
@@ -765,6 +804,7 @@ var appRouter = router({
           throw new TRPCError3({ code: "BAD_REQUEST", message: "\uC120\uD0DD\uD55C \uBA64\uBC84\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4" });
         }
         await claimMember(input.memberId, ctx.user.id);
+        joinedMemberName = target.name;
       } else if (input.newMemberName) {
         const existingMembers = await getMembersByProjectId(project.id);
         const color = pickNextColor(existingMembers.map((m) => m.color));
@@ -776,8 +816,18 @@ var appRouter = router({
           color,
           profileId: ctx.user.id
         });
+        joinedMemberName = input.newMemberName;
       } else {
         throw new TRPCError3({ code: "BAD_REQUEST", message: "\uCC38\uC5EC\uD560 \uBA64\uBC84\uB97C \uC120\uD0DD\uD558\uAC70\uB098 \uC774\uB984\uC744 \uC785\uB825\uD574\uC8FC\uC138\uC694" });
+      }
+      const membersAfterJoin = await getMembersByProjectId(project.id);
+      const notifyMemberIds = membersAfterJoin.filter((m) => m.profileId && m.profileId !== ctx.user.id).map((m) => m.id);
+      if (notifyMemberIds.length > 0) {
+        void notifyMemberJoined(notifyMemberIds, {
+          projectId: project.id,
+          projectName: project.name,
+          joinedMemberName
+        });
       }
       return { projectId: project.id };
     })
