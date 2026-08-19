@@ -1,21 +1,29 @@
-import nodemailer from "nodemailer";
+import type { Transporter } from "nodemailer";
 import { ENV } from "./env";
 
-let _transporter: ReturnType<typeof nodemailer.createTransport> | null = null;
+// nodemailer is loaded lazily (not at module scope) so that if it fails to
+// resolve/initialize in a given deploy environment, only email sending
+// breaks instead of crashing the entire serverless function on cold start.
+let _transporter: Transporter | null = null;
 
-function getTransporter() {
+async function getTransporter(): Promise<Transporter | null> {
   if (!ENV.gmailUser || !ENV.gmailAppPassword) return null;
-  if (!_transporter) {
+  if (_transporter) return _transporter;
+  try {
+    const { default: nodemailer } = await import("nodemailer");
     _transporter = nodemailer.createTransport({
       service: "gmail",
       auth: { user: ENV.gmailUser, pass: ENV.gmailAppPassword },
     });
+    return _transporter;
+  } catch (error) {
+    console.warn("[Mail] Failed to load nodemailer:", error);
+    return null;
   }
-  return _transporter;
 }
 
 async function sendMail(to: string, subject: string, html: string): Promise<boolean> {
-  const transporter = getTransporter();
+  const transporter = await getTransporter();
   if (!transporter) {
     console.warn(`[Mail] GMAIL_USER/GMAIL_APP_PASSWORD not configured - skipped: "${subject}" to ${to}`);
     return false;

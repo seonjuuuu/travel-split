@@ -16,7 +16,10 @@ export async function createContext(
   try {
     user = await authenticateRequest(opts.req);
   } catch (error) {
-    // Authentication is optional for public procedures.
+    // Authentication is optional for public procedures, but log the cause
+    // so misconfigured env vars (Supabase/DB) are visible in server logs
+    // instead of silently rendering as "logged in with no profile".
+    console.error("[Auth] authenticateRequest failed:", error);
     user = null;
   }
 
