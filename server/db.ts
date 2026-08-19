@@ -62,6 +62,12 @@ export async function touchLastSignedIn(userId: string) {
   await db.update(profiles).set({ lastSignedIn: new Date() }).where(eq(profiles.id, userId));
 }
 
+export async function updateProfileName(id: string, name: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(profiles).set({ name, updatedAt: new Date() }).where(eq(profiles.id, id));
+}
+
 // ── 여행 프로젝트 ────────────────────────────────────────────────
 // 소유자든 초대받은 협업자든 동일하게 "이 프로젝트에 profileId로 연결된 멤버 행이 있는가"로 판단한다.
 export async function getProjectsForUser(profileId: string) {
@@ -318,7 +324,7 @@ export async function createTodo(data: InsertTodo) {
 
 export async function updateTodo(
   id: string,
-  data: Partial<{ title: string; assigneeIds: string; isDone: boolean }>
+  data: Partial<{ title: string; assigneeIds: string; isDone: boolean; doneBy: string }>
 ) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");

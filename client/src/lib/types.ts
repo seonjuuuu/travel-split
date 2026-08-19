@@ -90,7 +90,8 @@ export interface Todo {
   projectId: string;
   title: string;
   assigneeIds: string[];
-  isDone: boolean;
+  isDone: boolean; // 담당자 0~1명일 때 사용
+  doneBy: string[]; // 담당자 2명 이상일 때, 각자 완료한 사람의 id
   createdAt?: string | Date;
   updatedAt?: string | Date;
 }

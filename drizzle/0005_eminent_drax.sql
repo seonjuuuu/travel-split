@@ -1,0 +1,1 @@
+ALTER TABLE "todos" ADD COLUMN "doneBy" varchar(2000) DEFAULT '[]' NOT NULL;

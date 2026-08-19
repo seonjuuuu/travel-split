@@ -4,16 +4,23 @@ import { Check, ListTodo, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
-import type { TravelProject } from "@/lib/types";
+import type { TravelProject, Todo } from "@/lib/types";
 
 interface Props {
   project: TravelProject;
 }
 
+// 담당자가 2명 이상이면 각자 따로 체크해야 완료로 친다. 그 외에는 isDone 하나로 판단.
+function isFullyDone(todo: Todo): boolean {
+  return todo.assigneeIds.length > 1
+    ? todo.assigneeIds.every((id) => todo.doneBy.includes(id))
+    : todo.isDone;
+}
+
 export default function TodoPanel({ project }: Props) {
   const utils = trpc.useUtils();
   const [title, setTitle] = useState("");
-  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  const [assigneeIds, setAssigneeIds] = useState<string[]>(() => project.members.map((m) => m.id));
 
   const toggleAssignee = (id: string) => {
     setAssigneeIds((prev) => (prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]));
@@ -32,7 +39,9 @@ export default function TodoPanel({ project }: Props) {
         return {
           ...old,
           todos: old.todos.map((t) =>
-            t.id === vars.id ? { ...t, isDone: vars.isDone ?? t.isDone } : t
+            t.id === vars.id
+              ? { ...t, isDone: vars.isDone ?? t.isDone, doneBy: vars.doneBy ?? t.doneBy }
+              : t
           ),
         };
       });
@@ -43,6 +52,14 @@ export default function TodoPanel({ project }: Props) {
     },
     onSettled: invalidate,
   });
+
+  // 담당자 2명 이상인 할일에서 특정 한 명의 완료 여부만 토글
+  const toggleDoneBy = (todo: Todo, memberId: string) => {
+    const nextDoneBy = todo.doneBy.includes(memberId)
+      ? todo.doneBy.filter((id) => id !== memberId)
+      : [...todo.doneBy, memberId];
+    toggleMutation.mutate({ id: todo.id, doneBy: nextDoneBy });
+  };
 
   const deleteMutation = trpc.todos.delete.useMutation({
     onMutate: async (vars) => {
@@ -68,11 +85,11 @@ export default function TodoPanel({ project }: Props) {
       assigneeIds,
     });
     setTitle("");
-    setAssigneeIds([]);
+    setAssigneeIds(project.members.map((m) => m.id));
   };
 
-  const todos = [...project.todos].sort((a, b) => Number(a.isDone) - Number(b.isDone));
-  const pendingCount = project.todos.filter((t) => !t.isDone).length;
+  const todos = [...project.todos].sort((a, b) => Number(isFullyDone(a)) - Number(isFullyDone(b)));
+  const pendingCount = project.todos.filter((t) => !isFullyDone(t)).length;
 
   return (
     <div>
@@ -87,17 +104,22 @@ export default function TodoPanel({ project }: Props) {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") handleAdd();
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) handleAdd();
             }}
             placeholder="예: 비행기 티켓 예약해줘"
+            disabled={addMutation.isPending}
             className="rounded-xl border-gray-200 flex-1"
           />
           <Button
             onClick={handleAdd}
-            disabled={!title.trim()}
+            disabled={!title.trim() || addMutation.isPending}
             className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-4 shrink-0"
           >
-            <Plus className="w-4 h-4" />
+            {addMutation.isPending ? (
+              <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+            ) : (
+              <Plus className="w-4 h-4" />
+            )}
           </Button>
         </div>
         <div className="flex flex-wrap gap-1.5 mt-3">
@@ -138,49 +160,83 @@ export default function TodoPanel({ project }: Props) {
           )}
           {todos.map((todo) => {
             const assignees = project.members.filter((m) => todo.assigneeIds.includes(m.id));
+            const isShared = assignees.length > 1;
+            const done = isFullyDone(todo);
             return (
               <div
                 key={todo.id}
                 className={`bg-white rounded-2xl border border-gray-100 p-3.5 flex items-center gap-3 ${
-                  todo.isDone ? "opacity-60" : ""
+                  done ? "opacity-60" : ""
                 }`}
               >
-                <button
-                  onClick={() =>
-                    toggleMutation.mutate({ id: todo.id, isDone: !todo.isDone })
-                  }
-                  className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 border-2 transition-colors ${
-                    todo.isDone
-                      ? "bg-indigo-600 border-indigo-600"
-                      : "border-gray-300 hover:border-indigo-400"
-                  }`}
-                >
-                  {todo.isDone && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
-                </button>
+                {!isShared && (
+                  <button
+                    onClick={() =>
+                      toggleMutation.mutate({ id: todo.id, isDone: !todo.isDone })
+                    }
+                    className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 border-2 transition-colors ${
+                      todo.isDone
+                        ? "bg-indigo-600 border-indigo-600"
+                        : "border-gray-300 hover:border-indigo-400"
+                    }`}
+                  >
+                    {todo.isDone && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
+                  </button>
+                )}
 
                 <div className="flex-1 min-w-0">
                   <p
                     className={`text-sm font-medium text-gray-900 truncate ${
-                      todo.isDone ? "line-through text-gray-400" : ""
+                      done ? "line-through text-gray-400" : ""
                     }`}
                   >
                     {todo.title}
                   </p>
+                  {isShared && (
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {todo.doneBy.length}/{assignees.length}명 완료
+                    </p>
+                  )}
                 </div>
 
-                {assignees.length > 0 && (
-                  <div className="flex -space-x-1.5 shrink-0">
-                    {assignees.map((assignee) => (
-                      <div
-                        key={assignee.id}
-                        className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold border-2 border-white"
-                        style={{ backgroundColor: assignee.color }}
-                        title={assignee.name}
-                      >
-                        {assignee.name[0]}
-                      </div>
-                    ))}
+                {isShared ? (
+                  <div className="flex gap-1 shrink-0">
+                    {assignees.map((assignee) => {
+                      const memberDone = todo.doneBy.includes(assignee.id);
+                      return (
+                        <button
+                          key={assignee.id}
+                          onClick={() => toggleDoneBy(todo, assignee.id)}
+                          className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border-2 transition-all ${
+                            memberDone ? "text-white" : "text-gray-400 bg-gray-50 border-dashed"
+                          }`}
+                          style={
+                            memberDone
+                              ? { backgroundColor: assignee.color, borderColor: assignee.color }
+                              : { borderColor: assignee.color }
+                          }
+                          title={`${assignee.name} ${memberDone ? "완료" : "미완료"}`}
+                        >
+                          {memberDone ? <Check className="w-3 h-3" strokeWidth={3} /> : assignee.name[0]}
+                        </button>
+                      );
+                    })}
                   </div>
+                ) : (
+                  assignees.length > 0 && (
+                    <div className="flex -space-x-1.5 shrink-0">
+                      {assignees.map((assignee) => (
+                        <div
+                          key={assignee.id}
+                          className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold border-2 border-white"
+                          style={{ backgroundColor: assignee.color }}
+                          title={assignee.name}
+                        >
+                          {assignee.name[0]}
+                        </div>
+                      ))}
+                    </div>
+                  )
                 )}
 
                 <button

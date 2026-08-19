@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { customAlphabet, nanoid } from "nanoid";
 import { z } from "zod";
 import type { DbExpense, DbTodo } from "../drizzle/schema";
+import { sendTodoAssignedEmail } from "./_core/mail";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import {
@@ -18,6 +19,7 @@ import {
   getExpensesByProjectId,
   getMemberById,
   getMembersByProjectId,
+  getProfileById,
   getProjectAccess,
   getProjectByEditToken,
   getProjectByShareToken,
@@ -30,6 +32,7 @@ import {
   setProjectShareToken,
   updateExpense,
   updateMember,
+  updateProfileName,
   updateProject,
   updateTodo,
 } from "./db";
@@ -75,10 +78,38 @@ function mapExpenseRow(e: DbExpense) {
   };
 }
 
+// 계정 연결된(profileId 있는) 담당자한테만 이메일 발송 가능 - 미참여 이름표 멤버는 이메일 주소가 없어서 건너뜀
+async function notifyTodoAssignees(
+  memberIds: string[],
+  info: { projectId: string; projectName: string; creatorName: string; todoTitle: string }
+) {
+  await Promise.all(
+    memberIds.map(async (memberId) => {
+      const member = await getMemberById(memberId);
+      if (!member?.profileId) return;
+      const profile = await getProfileById(member.profileId);
+      if (!profile?.email) return;
+      try {
+        await sendTodoAssignedEmail({
+          to: profile.email,
+          assigneeName: member.name,
+          creatorName: info.creatorName,
+          projectId: info.projectId,
+          projectName: info.projectName,
+          todoTitle: info.todoTitle,
+        });
+      } catch (error) {
+        console.warn("[Todos] Failed to send assignment email:", error);
+      }
+    })
+  );
+}
+
 function mapTodoRow(t: DbTodo) {
   return {
     ...t,
     assigneeIds: JSON.parse(t.assigneeIds || "[]") as string[],
+    doneBy: JSON.parse(t.doneBy || "[]") as string[],
     isDone: Boolean(t.isDone),
   };
 }
@@ -91,6 +122,13 @@ export const appRouter = router({
   // 여기서는 Authorization 헤더의 Supabase access token으로 복원된 프로필만 반환.
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
+
+    updateName: protectedProcedure
+      .input(z.object({ name: z.string().min(1).max(50) }))
+      .mutation(async ({ ctx, input }) => {
+        await updateProfileName(ctx.user.id, input.name);
+        return { success: true };
+      }),
   }),
 
   // ── 여행 프로젝트 ─────────────────────────────────────────────
@@ -439,15 +477,29 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ ctx, input }) => {
-        await assertProjectAccess(input.projectId, ctx.user.id);
+        const access = await assertProjectAccess(input.projectId, ctx.user.id);
         const id = nanoid();
-        return createTodo({
+        const todo = await createTodo({
           id,
           projectId: input.projectId,
           title: input.title,
           assigneeIds: JSON.stringify(input.assigneeIds),
           isDone: false,
+          doneBy: "[]",
         });
+
+        // 나 자신 말고 다른 담당자한테만 이메일 알림 (실패해도 할일 등록 자체는 성공 처리)
+        const otherAssigneeIds = input.assigneeIds.filter((memberId) => memberId !== access.memberId);
+        if (otherAssigneeIds.length > 0) {
+          void notifyTodoAssignees(otherAssigneeIds, {
+            projectId: input.projectId,
+            projectName: access.project.name,
+            creatorName: ctx.user.name ?? "누군가",
+            todoTitle: input.title,
+          });
+        }
+
+        return todo;
       }),
 
     update: protectedProcedure
@@ -457,16 +509,18 @@ export const appRouter = router({
           title: z.string().min(1).optional(),
           assigneeIds: z.array(z.string()).optional(),
           isDone: z.boolean().optional(),
+          doneBy: z.array(z.string()).optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {
         const todo = await getTodoById(input.id);
         if (!todo) throw new TRPCError({ code: "NOT_FOUND", message: "할일을 찾을 수 없습니다" });
         await assertProjectAccess(todo.projectId, ctx.user.id);
-        const { id, assigneeIds, ...rest } = input;
+        const { id, assigneeIds, doneBy, ...rest } = input;
         await updateTodo(id, {
           ...rest,
           ...(assigneeIds !== undefined ? { assigneeIds: JSON.stringify(assigneeIds) } : {}),
+          ...(doneBy !== undefined ? { doneBy: JSON.stringify(doneBy) } : {}),
         });
         return { success: true };
       }),

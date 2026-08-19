@@ -98,7 +98,8 @@ export const todos = pgTable("todos", {
   projectId: varchar("projectId", { length: 36 }).notNull(),
   title: varchar("title", { length: 200 }).notNull(),
   assigneeIds: varchar("assigneeIds", { length: 2000 }).notNull().default("[]"), // JSON array of projectMembers.id (빈 배열이면 담당자 미지정)
-  isDone: boolean("isDone").default(false).notNull(),
+  isDone: boolean("isDone").default(false).notNull(), // 담당자 0~1명일 때 사용하는 완료 여부
+  doneBy: varchar("doneBy", { length: 2000 }).notNull().default("[]"), // 담당자 2명 이상일 때, 각자 완료한 사람의 projectMembers.id JSON 배열
   createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updatedAt", { withTimezone: true }).defaultNow().notNull(),
 });

@@ -26,6 +26,7 @@ import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import CreateProjectModal from "@/components/CreateProjectModal";
 import JoinByCodeModal from "@/components/JoinByCodeModal";
+import ProfileModal from "@/components/ProfileModal";
 
 // ── 트립스플릿 로고 SVG ──────────────────────────────────────────────
 function TripSplitLogo({ size = 32 }: { size?: number }) {
@@ -80,6 +81,7 @@ export default function Home() {
   const { user, loading, isAuthenticated, logout } = useAuth();
   const [showCreate, setShowCreate] = useState(false);
   const [showJoinByCode, setShowJoinByCode] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   useEffect(() => {
@@ -125,12 +127,16 @@ export default function Home() {
               TRIP<span className="text-indigo-600">·</span>SPLIT
             </div>
             <div className="flex items-center gap-3">
-              <div className="hidden sm:flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold">
+              <button
+                onClick={() => setShowProfile(true)}
+                className="flex items-center gap-2 rounded-sm px-1.5 h-9 hover:bg-[#EDEFE7] transition-colors"
+                title="내 프로필"
+              >
+                <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
                   {user?.name?.[0] ?? "U"}
                 </div>
-                <span className="text-sm text-[#5B6B72]">{user?.name}</span>
-              </div>
+                <span className="hidden sm:inline text-sm text-[#5B6B72]">{user?.name}</span>
+              </button>
               <button
                 onClick={() => setShowJoinByCode(true)}
                 className="bg-[#EDEFE7] hover:bg-[#E4E6DF] text-[#12222D] rounded-sm px-4 h-9 text-sm font-medium flex items-center gap-1.5 transition-colors"
@@ -289,6 +295,7 @@ export default function Home() {
           onCreated={() => refetch()}
         />
         <JoinByCodeModal open={showJoinByCode} onClose={() => setShowJoinByCode(false)} />
+        <ProfileModal open={showProfile} onClose={() => setShowProfile(false)} user={user} />
       </div>
     );
   }
