@@ -150,10 +150,20 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
                     공동경비
                   </span>
                 ) : isPersonalCard ? (
-                  <span className="flex items-center gap-1 text-violet-600 font-medium">
-                    <User className="w-3 h-3" />
-                    개인경비
-                  </span>
+                  <>
+                    <span className="flex items-center gap-1 text-violet-600 font-medium">
+                      <User className="w-3 h-3" />
+                      개인경비
+                    </span>
+                    {Boolean(expense.isPreTrip) ? (
+                      <span className="flex items-center gap-1 text-amber-600 font-medium">
+                        <Plane className="w-3 h-3" />
+                        사전결제
+                      </span>
+                    ) : expense.date ? (
+                      <span className="text-gray-400">{formatDate(expense.date)}</span>
+                    ) : null}
+                  </>
                 ) : payer ? (
                   <div className="flex items-center gap-1">
                     <span className="font-medium" style={{ color: payer.color }}>{payer.name}</span>
