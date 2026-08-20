@@ -336,18 +336,18 @@ export default function ProjectPage() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4">
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
-          <div className="bg-[#F6F7F2] rounded-sm p-3 sm:p-4 border border-[#12222D]/12 min-w-0">
-            <p className="text-[10px] tracking-[0.1em] uppercase text-[#5B6B72] mb-1.5 truncate">총 지출</p>
-            <p className="tix-mono text-base sm:text-lg font-bold text-[#12222D] truncate">{totalExpense.toLocaleString()}<span className="text-xs font-normal text-[#5B6B72] ml-0.5">원</span></p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+          <div className="bg-[#F6F7F2] rounded-sm p-3 sm:p-4 border border-[#12222D]/12 min-w-0 flex items-center justify-between sm:block">
+            <p className="text-[10px] tracking-[0.1em] uppercase text-[#5B6B72] sm:mb-1.5">총 지출</p>
+            <p className="tix-mono text-base sm:text-lg font-bold text-[#12222D]">{totalExpense.toLocaleString()}<span className="text-xs font-normal text-[#5B6B72] ml-0.5">원</span></p>
           </div>
-          <div className="bg-[#F6F7F2] rounded-sm p-3 sm:p-4 border border-[#12222D]/12 min-w-0">
-            <p className="text-[10px] tracking-[0.1em] uppercase text-[#5B6B72] mb-1.5 truncate">지출 건수</p>
-            <p className="tix-mono text-base sm:text-lg font-bold text-[#12222D] truncate">{project.expenses.length}<span className="text-xs font-normal text-[#5B6B72] ml-0.5">건</span></p>
+          <div className="bg-[#F6F7F2] rounded-sm p-3 sm:p-4 border border-[#12222D]/12 min-w-0 flex items-center justify-between sm:block">
+            <p className="text-[10px] tracking-[0.1em] uppercase text-[#5B6B72] sm:mb-1.5">지출 건수</p>
+            <p className="tix-mono text-base sm:text-lg font-bold text-[#12222D]">{project.expenses.length}<span className="text-xs font-normal text-[#5B6B72] ml-0.5">건</span></p>
           </div>
-          <div className="bg-[#F6F7F2] rounded-sm p-3 sm:p-4 border border-[#12222D]/12 min-w-0">
-            <p className="text-[10px] tracking-[0.1em] uppercase text-[#5B6B72] mb-1.5 truncate">인당 평균</p>
-            <p className="tix-mono text-base sm:text-lg font-bold text-[#12222D] truncate">{project.members.length > 0 ? Math.round(totalExpense / project.members.length).toLocaleString() : 0}<span className="text-xs font-normal text-[#5B6B72] ml-0.5">원</span></p>
+          <div className="bg-[#F6F7F2] rounded-sm p-3 sm:p-4 border border-[#12222D]/12 min-w-0 flex items-center justify-between sm:block">
+            <p className="text-[10px] tracking-[0.1em] uppercase text-[#5B6B72] sm:mb-1.5">인당 평균</p>
+            <p className="tix-mono text-base sm:text-lg font-bold text-[#12222D]">{project.members.length > 0 ? Math.round(totalExpense / project.members.length).toLocaleString() : 0}<span className="text-xs font-normal text-[#5B6B72] ml-0.5">원</span></p>
           </div>
         </div>
       </div>
