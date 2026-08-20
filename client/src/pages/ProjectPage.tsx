@@ -197,6 +197,29 @@ export default function ProjectPage() {
     : null;
   const totalExpense = project.expenses.reduce((s, e) => s + e.amount, 0);
 
+  // "총 지출" 카드는 여행 전체 합계가 아니라 내가 실제로 부담하는 금액 기준:
+  // 분할 지출은 내 참여 몫만큼, 개인경비는 내가 결제한 만큼만 더한다 (공동경비 제외).
+  const myMemberId =
+    project.members.find((m) => m.profileId === user?.id)?.id ??
+    project.members.find((m) => m.isMe)?.id;
+  const mySplitShare = myMemberId
+    ? project.expenses
+        .filter(
+          (e) =>
+            !Boolean(e.isSharedCost) &&
+            !Boolean(e.isPersonal) &&
+            Array.isArray(e.participantIds) &&
+            e.participantIds.includes(myMemberId)
+        )
+        .reduce((s, e) => s + e.amount / (e.participantIds.length || 1), 0)
+    : 0;
+  const myPersonalExpense = myMemberId
+    ? project.expenses
+        .filter((e) => Boolean(e.isPersonal) && e.payerId === myMemberId)
+        .reduce((s, e) => s + e.amount, 0)
+    : 0;
+  const myTotalExpense = Math.round(mySplitShare + myPersonalExpense);
+
   const pendingTodoCount = project.todos.filter((t) => !t.isDone).length;
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "expenses", label: "지출 목록", icon: <Receipt className="w-4 h-4" /> },
@@ -338,8 +361,8 @@ export default function ProjectPage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
           <div className="bg-[#F6F7F2] rounded-sm p-3 sm:p-4 border border-[#12222D]/12 min-w-0 flex items-center justify-between sm:block">
-            <p className="text-[10px] tracking-[0.1em] uppercase text-[#5B6B72] sm:mb-1.5">총 지출</p>
-            <p className="tix-mono text-base sm:text-lg font-bold text-[#12222D]">{totalExpense.toLocaleString()}<span className="text-xs font-normal text-[#5B6B72] ml-0.5">원</span></p>
+            <p className="text-[10px] tracking-[0.1em] uppercase text-[#5B6B72] sm:mb-1.5">내 총 지출</p>
+            <p className="tix-mono text-base sm:text-lg font-bold text-[#12222D]">{myTotalExpense.toLocaleString()}<span className="text-xs font-normal text-[#5B6B72] ml-0.5">원</span></p>
           </div>
           <div className="bg-[#F6F7F2] rounded-sm p-3 sm:p-4 border border-[#12222D]/12 min-w-0 flex items-center justify-between sm:block">
             <p className="text-[10px] tracking-[0.1em] uppercase text-[#5B6B72] sm:mb-1.5">지출 건수</p>

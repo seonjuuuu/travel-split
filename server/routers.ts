@@ -168,10 +168,23 @@ export const appRouter = router({
             getExpensesByProjectId(project.id),
           ]);
           const myMemberId = members.find((m) => m.profileId === ctx.user.id)?.id;
-          // 다른 사람의 개인경비는 상세 페이지와 동일하게 합계에서 제외
-          const totalAmount = expenseRows
-            .filter((e) => !Boolean(e.isPersonal) || e.payerId === myMemberId)
-            .reduce((s, e) => s + e.amount, 0);
+          // "총 지출"은 여행 전체 합계가 아니라 내가 실제로 부담하는 금액:
+          // 분할 지출은 내 참여 몫만, 개인경비는 내가 결제한 것만 (공동경비 제외)
+          const mySplitShare = myMemberId
+            ? expenseRows
+                .filter((e) => !Boolean(e.isSharedCost) && !Boolean(e.isPersonal))
+                .reduce((s, e) => {
+                  const participantIds = JSON.parse(e.participantIds || "[]") as string[];
+                  if (!participantIds.includes(myMemberId)) return s;
+                  return s + e.amount / (participantIds.length || 1);
+                }, 0)
+            : 0;
+          const myPersonalExpense = myMemberId
+            ? expenseRows
+                .filter((e) => Boolean(e.isPersonal) && e.payerId === myMemberId)
+                .reduce((s, e) => s + e.amount, 0)
+            : 0;
+          const totalAmount = Math.round(mySplitShare + myPersonalExpense);
           return { ...project, members, totalAmount };
         })
       );

@@ -46,11 +46,18 @@ async function getTransporter() {
 async function sendMail(to, subject, html) {
   const transporter = await getTransporter();
   if (!transporter) {
-    console.warn(`[Mail] GMAIL_USER/GMAIL_APP_PASSWORD not configured - skipped: "${subject}" to ${to}`);
+    console.warn(
+      `[Mail] GMAIL_USER/GMAIL_APP_PASSWORD not configured - skipped: "${subject}" to ${to}`
+    );
     return false;
   }
   try {
-    await transporter.sendMail({ from: `\uD2B8\uB9BD\uC2A4\uD50C\uB9BF <${ENV.gmailUser}>`, to, subject, html });
+    await transporter.sendMail({
+      from: `\uD2B8\uB9BD\uC2A4\uD50C\uB9BF <${ENV.gmailUser}>`,
+      to,
+      subject,
+      html
+    });
     return true;
   } catch (error) {
     console.warn("[Mail] Failed to send email:", error);
@@ -92,7 +99,11 @@ async function sendMemberJoinedEmail(params) {
       </a>
     </div>
   `;
-  return sendMail(to, `[${projectName}] ${joinedMemberName}\uB2D8\uC774 \uCC38\uC5EC\uD588\uC5B4\uC694`, html);
+  return sendMail(
+    to,
+    `[${projectName}] ${joinedMemberName}\uB2D8\uC774 \uCC38\uC5EC\uD588\uC5B4\uC694`,
+    html
+  );
 }
 
 // server/_core/systemRouter.ts
@@ -668,7 +679,13 @@ var appRouter = router({
             getExpensesByProjectId(project.id)
           ]);
           const myMemberId = members.find((m) => m.profileId === ctx.user.id)?.id;
-          const totalAmount = expenseRows.filter((e) => !Boolean(e.isPersonal) || e.payerId === myMemberId).reduce((s, e) => s + e.amount, 0);
+          const mySplitShare = myMemberId ? expenseRows.filter((e) => !Boolean(e.isSharedCost) && !Boolean(e.isPersonal)).reduce((s, e) => {
+            const participantIds = JSON.parse(e.participantIds || "[]");
+            if (!participantIds.includes(myMemberId)) return s;
+            return s + e.amount / (participantIds.length || 1);
+          }, 0) : 0;
+          const myPersonalExpense = myMemberId ? expenseRows.filter((e) => Boolean(e.isPersonal) && e.payerId === myMemberId).reduce((s, e) => s + e.amount, 0) : 0;
+          const totalAmount = Math.round(mySplitShare + myPersonalExpense);
           return { ...project, members, totalAmount };
         })
       );
