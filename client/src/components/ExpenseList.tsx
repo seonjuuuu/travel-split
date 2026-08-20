@@ -42,6 +42,16 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showPreTrip, setShowPreTrip] = useState(true);
+  // 개인경비/날짜별 분담 섹션들은 각각 독립적으로 접고 펼 수 있도록 키 단위로 관리
+  const [hiddenSectionKeys, setHiddenSectionKeys] = useState<Set<string>>(new Set());
+  const toggleSection = (key: string) => {
+    setHiddenSectionKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const handleDelete = (expenseId: string) => {
     if (deleteConfirm === expenseId) {
@@ -293,6 +303,48 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
     );
   };
 
+  // 개인경비 섹션(사전결제 아래 / 날짜별 그룹 아래 공통) - 라벨 + 합계 + 접기/펼치기
+  const renderPersonalSection = (key: string, list: Expense[]) => {
+    if (list.length === 0) return null;
+    const isOpen = !hiddenSectionKeys.has(key);
+    return (
+      <div>
+        <button
+          onClick={() => toggleSection(key)}
+          className="flex items-center justify-between w-full mb-1.5 px-0.5 group"
+        >
+          <div className="flex items-center gap-1.5 text-xs text-violet-600 font-semibold">
+            <User className="w-3 h-3" />
+            개인 경비
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="tix-mono text-xs font-bold text-violet-600">
+              {formatAmount(list.reduce((s, e) => s + e.amount, 0))}
+            </span>
+            {isOpen ? (
+              <ChevronUp className="w-3.5 h-3.5 text-violet-400" />
+            ) : (
+              <ChevronDown className="w-3.5 h-3.5 text-violet-400" />
+            )}
+          </div>
+        </button>
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              {renderExpenseTicket(list)}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  };
+
   return (
     <>
       <div className="space-y-6">
@@ -343,11 +395,7 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
         {/* 👤 사전결제 개인경비 섹션 - 사전결제 섹션 바로 아래, 날짜별 개인경비와 동일한 디자인 */}
         {personalPreTripExpenses.length > 0 && (
           <div className={preTripExpenses.length > 0 ? "mt-2" : ""}>
-            <div className="flex items-center gap-1.5 text-xs text-violet-600 font-semibold mb-1.5 px-0.5">
-              <User className="w-3 h-3" />
-              개인 경비
-            </div>
-            {renderExpenseTicket(personalPreTripExpenses)}
+            {renderPersonalSection("pre-trip", personalPreTripExpenses)}
           </div>
         )}
 
@@ -356,34 +404,63 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
           const dayExpenses = grouped[date];
           const daySplitExpenses = dayExpenses.filter((e) => !Boolean(e.isPersonal));
           const dayPersonalExpenses = dayExpenses.filter((e) => Boolean(e.isPersonal));
-          const dayTotal = dayExpenses.reduce((s, e) => s + e.amount, 0);
+          const dateLabel = date !== "날짜 없음" ? `${formatDate(date)} 결제` : "날짜 미지정";
+          const splitKey = `split-${date}`;
+          const isSplitOpen = !hiddenSectionKeys.has(splitKey);
 
           return (
             <div key={date}>
-              {/* 날짜 헤더 */}
-              {!selectedDate && (
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-indigo-400 rounded-full" />
-                    <span className="text-sm font-semibold text-gray-700">
-                      {date !== "날짜 없음" ? formatDate(date) : "날짜 미지정"}
-                    </span>
-                  </div>
-                  <span className="tix-mono text-xs font-medium text-gray-400">
-                    {formatAmount(dayTotal)}
-                  </span>
+              {/* 분담 지출 - 사전결제와 동일한 뱃지 헤더 스타일, 접기/펼치기 */}
+              {daySplitExpenses.length > 0 && (
+                <div>
+                  {!selectedDate ? (
+                    <>
+                      <button
+                        onClick={() => toggleSection(splitKey)}
+                        className="flex items-center justify-between w-full mb-3 group"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5 bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-full">
+                            <span className="text-xs font-bold">{dateLabel}</span>
+                            <span className="text-xs bg-indigo-200 text-indigo-800 rounded-full px-1.5 py-0.5 font-bold ml-0.5">
+                              {daySplitExpenses.length}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="tix-mono text-xs font-bold text-indigo-600">
+                            {formatAmount(daySplitExpenses.reduce((s, e) => s + e.amount, 0))}
+                          </span>
+                          {isSplitOpen ? (
+                            <ChevronUp className="w-4 h-4 text-indigo-400" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-indigo-400" />
+                          )}
+                        </div>
+                      </button>
+                      <AnimatePresence>
+                        {isSplitOpen && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="overflow-hidden"
+                          >
+                            {renderExpenseTicket(daySplitExpenses)}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </>
+                  ) : (
+                    renderExpenseTicket(daySplitExpenses)
+                  )}
                 </div>
               )}
 
-              {daySplitExpenses.length > 0 && renderExpenseTicket(daySplitExpenses)}
-
               {dayPersonalExpenses.length > 0 && (
                 <div className={daySplitExpenses.length > 0 ? "mt-2" : ""}>
-                  <div className="flex items-center gap-1.5 text-xs text-violet-600 font-semibold mb-1.5 px-0.5">
-                    <User className="w-3 h-3" />
-                    개인 경비
-                  </div>
-                  {renderExpenseTicket(dayPersonalExpenses)}
+                  {renderPersonalSection(`personal-${date}`, dayPersonalExpenses)}
                 </div>
               )}
             </div>
