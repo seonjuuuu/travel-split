@@ -81,6 +81,8 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
   const visiblePreTripExpenses = showPersonalInPreTrip
     ? preTripExpenses
     : preTripExpenses.filter((e) => !Boolean(e.isPersonal));
+  const preTripVisibleTotal = visiblePreTripExpenses.reduce((s, e) => s + e.amount, 0);
+  const memberCount = project.members.length || 1;
   // 나머지(사전결제 아닌 것)는 개인경비 여부와 무관하게 전부 날짜별로 그룹핑
   const tripExpenses = expenses.filter((e) => Boolean(e.isPreTrip) !== true);
 
@@ -372,7 +374,10 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
                   </label>
                 )}
                 <span className="tix-mono text-xs font-bold text-amber-600 whitespace-nowrap">
-                  {formatAmount(visiblePreTripExpenses.reduce((s, e) => s + e.amount, 0))}
+                  {formatAmount(preTripVisibleTotal)}
+                  <span className="text-[10px] font-normal text-amber-400 ml-1">
+                    (인당 {formatAmount(Math.round(preTripVisibleTotal / memberCount))})
+                  </span>
                 </span>
                 <button onClick={() => setShowPreTrip((v) => !v)} className="shrink-0">
                   {showPreTrip ? (
@@ -439,6 +444,9 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
                   )}
                   <span className="tix-mono text-xs font-bold text-indigo-600 whitespace-nowrap">
                     {formatAmount(visibleDayTotal)}
+                    <span className="text-[10px] font-normal text-indigo-400 ml-1">
+                      (인당 {formatAmount(Math.round(visibleDayTotal / memberCount))})
+                    </span>
                   </span>
                   <button onClick={() => toggleDateCollapse(date)} className="shrink-0">
                     {isDateOpen ? (
