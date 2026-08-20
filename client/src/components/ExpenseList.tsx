@@ -385,9 +385,11 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
           </div>
         )}
 
-        {/* 📅 여행 중 지출 - 날짜별 그룹 */}
+        {/* 📅 여행 중 지출 - 날짜별 그룹, 그 안에서 분담/개인경비 다시 분리 */}
         {sortedDates.map((date) => {
           const dayExpenses = grouped[date];
+          const daySplitExpenses = dayExpenses.filter((e) => !Boolean(e.isPersonal));
+          const dayPersonalExpenses = dayExpenses.filter((e) => Boolean(e.isPersonal));
           const dayTotal = dayExpenses.reduce((s, e) => s + e.amount, 0);
 
           return (
@@ -407,7 +409,17 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
                 </div>
               )}
 
-              {renderExpenseTicket(dayExpenses)}
+              {daySplitExpenses.length > 0 && renderExpenseTicket(daySplitExpenses)}
+
+              {dayPersonalExpenses.length > 0 && (
+                <div className={daySplitExpenses.length > 0 ? "mt-2" : ""}>
+                  <div className="flex items-center gap-1.5 text-xs text-violet-600 font-semibold mb-1.5 px-0.5">
+                    <User className="w-3 h-3" />
+                    개인 경비
+                  </div>
+                  {renderExpenseTicket(dayPersonalExpenses)}
+                </div>
+              )}
             </div>
           );
         })}
