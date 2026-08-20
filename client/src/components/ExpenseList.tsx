@@ -42,17 +42,8 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showPreTrip, setShowPreTrip] = useState(true);
-  const [showPersonalInPreTrip, setShowPersonalInPreTrip] = useState(true);
-  // 날짜별 그룹의 "개인경비 보기" 토글은 날짜마다 독립적으로 관리 (꺼둔 날짜만 이 안에 들어감)
-  const [hiddenPersonalDates, setHiddenPersonalDates] = useState<Set<string>>(new Set());
-  const toggleDayPersonal = (date: string) => {
-    setHiddenPersonalDates((prev) => {
-      const next = new Set(prev);
-      if (next.has(date)) next.delete(date);
-      else next.add(date);
-      return next;
-    });
-  };
+  // 사전결제/날짜 구분 없이 개인경비 전체를 한 번에 켜고 끄는 토글
+  const [showPersonal, setShowPersonal] = useState(true);
   // 날짜 섹션도 사전결제처럼 각각 독립적으로 접고 펼 수 있게 관리
   const [collapsedDates, setCollapsedDates] = useState<Set<string>>(new Set());
   const toggleDateCollapse = (date: string) => {
@@ -77,8 +68,7 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
   // 사전결제 - 개인경비 포함 전체, 날짜 무관 별도 섹션 (개인경비도 같은 티켓에 합쳐서 표시하고
   // "개인경비 보기" 토글로 켜고 끔)
   const preTripExpenses = expenses.filter((e) => Boolean(e.isPreTrip) === true);
-  const personalPreTripExpenses = preTripExpenses.filter((e) => Boolean(e.isPersonal) === true);
-  const visiblePreTripExpenses = showPersonalInPreTrip
+  const visiblePreTripExpenses = showPersonal
     ? preTripExpenses
     : preTripExpenses.filter((e) => !Boolean(e.isPersonal));
   const preTripVisibleTotal = visiblePreTripExpenses.reduce((s, e) => s + e.amount, 0);
@@ -116,18 +106,7 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
   }, {});
   const sortedDates = Object.keys(grouped).sort((a, b) => a.localeCompare(b));
 
-  // 사전결제/날짜별 "개인경비 보기" 토글을 한 번에 켜고 끄는 전체 스위치
   const anyPersonalExpenses = expenses.some((e) => Boolean(e.isPersonal));
-  const allPersonalVisible = showPersonalInPreTrip && hiddenPersonalDates.size === 0;
-  const toggleAllPersonal = () => {
-    if (allPersonalVisible) {
-      setShowPersonalInPreTrip(false);
-      setHiddenPersonalDates(new Set(sortedDates));
-    } else {
-      setShowPersonalInPreTrip(true);
-      setHiddenPersonalDates(new Set());
-    }
-  };
 
   const renderExpenseRow = (expense: Expense, idx: number) => {
     const catConfig = CATEGORY_CONFIG[expense.category];
@@ -336,8 +315,8 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
           <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer select-none">
             <input
               type="checkbox"
-              checked={allPersonalVisible}
-              onChange={toggleAllPersonal}
+              checked={showPersonal}
+              onChange={(e) => setShowPersonal(e.target.checked)}
               className="w-3.5 h-3.5 rounded accent-violet-600"
             />
             개인경비 전체 보기
@@ -361,17 +340,6 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
               </button>
 
               <div className="flex items-center gap-3 min-w-0">
-                {personalPreTripExpenses.length > 0 && (
-                  <label className="flex items-center gap-1 text-[10px] text-gray-400 whitespace-nowrap cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={showPersonalInPreTrip}
-                      onChange={(e) => setShowPersonalInPreTrip(e.target.checked)}
-                      className="w-3 h-3 rounded accent-violet-600"
-                    />
-                    개인경비 보기
-                  </label>
-                )}
                 <span className="tix-mono text-xs font-bold text-amber-600 whitespace-nowrap">
                   {formatAmount(preTripVisibleTotal)}
                 </span>
@@ -404,9 +372,7 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
         {/* 📅 여행 중 지출 - 날짜별 그룹, 사전결제와 동일한 뱃지+토글+접기 디자인 */}
         {sortedDates.map((date) => {
           const dayExpenses = grouped[date];
-          const dayPersonalExpenses = dayExpenses.filter((e) => Boolean(e.isPersonal));
-          const showDayPersonal = !hiddenPersonalDates.has(date);
-          const visibleDayExpenses = showDayPersonal
+          const visibleDayExpenses = showPersonal
             ? dayExpenses
             : dayExpenses.filter((e) => !Boolean(e.isPersonal));
           const visibleDayTotal = visibleDayExpenses.reduce((s, e) => s + e.amount, 0);
@@ -427,17 +393,6 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
                 </button>
 
                 <div className="flex items-center gap-3 min-w-0">
-                  {dayPersonalExpenses.length > 0 && (
-                    <label className="flex items-center gap-1 text-[10px] text-gray-400 whitespace-nowrap cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={showDayPersonal}
-                        onChange={() => toggleDayPersonal(date)}
-                        className="w-3 h-3 rounded accent-violet-600"
-                      />
-                      개인경비 보기
-                    </label>
-                  )}
                   <span className="tix-mono text-xs font-bold text-indigo-600 whitespace-nowrap">
                     {formatAmount(visibleDayTotal)}
                   </span>
