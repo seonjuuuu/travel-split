@@ -42,6 +42,7 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showPreTrip, setShowPreTrip] = useState(true);
+  const [showPersonalInPreTrip, setShowPersonalInPreTrip] = useState(true);
 
   const handleDelete = (expenseId: string) => {
     if (deleteConfirm === expenseId) {
@@ -53,14 +54,13 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
     }
   };
 
-  // 사전결제(개인 아닌 것) - 날짜 무관 별도 섹션
-  const preTripExpenses = expenses.filter(
-    (e) => Boolean(e.isPreTrip) === true && Boolean(e.isPersonal) !== true
-  );
-  // 사전결제이면서 개인경비인 것 - 사전결제 섹션 바로 아래 별도 그룹으로 표시
-  const personalPreTripExpenses = expenses.filter(
-    (e) => Boolean(e.isPreTrip) === true && Boolean(e.isPersonal) === true
-  );
+  // 사전결제 - 개인경비 포함 전체, 날짜 무관 별도 섹션 (개인경비도 같은 티켓에 합쳐서 표시하고
+  // "개인경비 보기" 토글로 켜고 끔)
+  const preTripExpenses = expenses.filter((e) => Boolean(e.isPreTrip) === true);
+  const personalPreTripExpenses = preTripExpenses.filter((e) => Boolean(e.isPersonal) === true);
+  const visiblePreTripExpenses = showPersonalInPreTrip
+    ? preTripExpenses
+    : preTripExpenses.filter((e) => !Boolean(e.isPersonal));
   // 나머지(사전결제 아닌 것)는 개인경비 여부와 무관하게 전부 날짜별로 그룹핑
   const tripExpenses = expenses.filter((e) => Boolean(e.isPreTrip) !== true);
 
@@ -310,33 +310,45 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
   return (
     <>
       <div className="space-y-6">
-        {/* ✈️ 사전 결제 섹션 - 날짜 무관 독립 분류 */}
+        {/* ✈️ 사전 결제 섹션 - 개인경비 포함 전체, 날짜 무관 독립 분류 */}
         {preTripExpenses.length > 0 && (
           <div>
-            <button
-              onClick={() => setShowPreTrip((v) => !v)}
-              className="flex items-center justify-between w-full mb-3 group"
-            >
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5 bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full">
-                  <Plane className="w-3.5 h-3.5" />
-                  <span className="text-xs font-bold">사전 결제</span>
-                  <span className="text-xs bg-amber-200 text-amber-800 rounded-full px-1.5 py-0.5 font-bold ml-0.5">
-                    {preTripExpenses.length}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="tix-mono text-xs font-bold text-amber-600">
+            <div className="flex items-center justify-between w-full mb-3 gap-2">
+              <button
+                onClick={() => setShowPreTrip((v) => !v)}
+                className="flex items-center gap-1.5 bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full shrink-0"
+              >
+                <Plane className="w-3.5 h-3.5" />
+                <span className="text-xs font-bold">사전 결제</span>
+                <span className="text-xs bg-amber-200 text-amber-800 rounded-full px-1.5 py-0.5 font-bold ml-0.5">
+                  {preTripExpenses.length}
+                </span>
+              </button>
+
+              <div className="flex items-center gap-3 min-w-0">
+                {personalPreTripExpenses.length > 0 && (
+                  <label className="flex items-center gap-1 text-[10px] text-gray-400 whitespace-nowrap cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={showPersonalInPreTrip}
+                      onChange={(e) => setShowPersonalInPreTrip(e.target.checked)}
+                      className="w-3 h-3 rounded accent-violet-600"
+                    />
+                    개인경비 보기
+                  </label>
+                )}
+                <span className="tix-mono text-xs font-bold text-amber-600 whitespace-nowrap">
                   {formatAmount(preTripExpenses.reduce((s, e) => s + e.amount, 0))}
                 </span>
-                {showPreTrip ? (
-                  <ChevronUp className="w-4 h-4 text-amber-400" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-amber-400" />
-                )}
+                <button onClick={() => setShowPreTrip((v) => !v)} className="shrink-0">
+                  {showPreTrip ? (
+                    <ChevronUp className="w-4 h-4 text-amber-400" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-amber-400" />
+                  )}
+                </button>
               </div>
-            </button>
+            </div>
 
             <AnimatePresence>
               {showPreTrip && (
@@ -347,17 +359,10 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
                   transition={{ duration: 0.2 }}
                   className="overflow-hidden"
                 >
-                  {renderExpenseTicket(preTripExpenses)}
+                  {renderExpenseTicket(visiblePreTripExpenses)}
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
-        )}
-
-        {/* 👤 사전결제 개인경비 섹션 - 사전결제 섹션 바로 아래, 날짜별 개인경비와 동일한 디자인 */}
-        {personalPreTripExpenses.length > 0 && (
-          <div className={preTripExpenses.length > 0 ? "mt-2" : ""}>
-            {renderPersonalSection(personalPreTripExpenses)}
           </div>
         )}
 
@@ -397,9 +402,7 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
         })}
 
         {/* 여행 중 지출이 없고 사전 결제/개인경비만 있는 경우 - "전체" 보기에서만, 사전결제만 필터링해서 볼 땐 안 뜨게 */}
-        {!selectedDate &&
-          tripExpenses.length === 0 &&
-          (preTripExpenses.length > 0 || personalPreTripExpenses.length > 0) && (
+        {!selectedDate && tripExpenses.length === 0 && preTripExpenses.length > 0 && (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <p className="text-sm text-gray-400">여행 중 지출이 없어요</p>
             <p className="text-xs text-gray-300 mt-1">
