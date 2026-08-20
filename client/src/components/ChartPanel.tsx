@@ -47,7 +47,7 @@ export default function ChartPanel({ project, selectedDate }: Props) {
 
   const [viewMode, setViewMode] = useState<ViewMode>("settlement");
   // "개인경비" 탭에서 개인경비 전액 + 정산 대상 지출 중 내가 부담할 몫까지 합쳐서 보고 싶을 때 체크
-  const [includeMyShare, setIncludeMyShare] = useState(false);
+  const [includeMyShare, setIncludeMyShare] = useState(true);
 
   const dateFiltered = selectedDate
     ? project.expenses.filter((e) => e.date === selectedDate)
