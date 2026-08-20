@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useDragScroll } from "@/hooks/useDragScroll";
 import { trpc } from "@/lib/trpc";
-import { getDatesInRange, formatDate, formatDayOfWeek } from "@/lib/types";
+import { getDatesInRange, formatDate, formatDayOfWeek, calculateSettlements, formatAmount } from "@/lib/types";
 import ExpenseList from "@/components/ExpenseList";
 import AddExpenseModal from "@/components/AddExpenseModal";
 import InviteModal from "@/components/InviteModal";
@@ -195,8 +195,6 @@ export default function ProjectPage() {
         .filter((e) => e.payerId === selectedMemberId)
         .reduce((s, e) => s + e.amount, 0)
     : null;
-  const totalExpense = project.expenses.reduce((s, e) => s + e.amount, 0);
-
   // "총 지출" 카드는 여행 전체 합계가 아니라 내가 실제로 부담하는 금액 기준:
   // 분할 지출은 내 참여 몫만큼, 개인경비는 내가 결제한 만큼만 더한다 (공동경비 제외).
   const myMemberId =
@@ -219,6 +217,12 @@ export default function ProjectPage() {
         .reduce((s, e) => s + e.amount, 0)
     : 0;
   const myTotalExpense = Math.round(mySplitShare + myPersonalExpense);
+
+  // 정산 예정 금액 - 양수면 받을 돈, 음수면 내가 줘야 할 돈
+  const { results: settlementResults } = calculateSettlements(project.members, project.expenses);
+  const mySettlementBalance = myMemberId
+    ? Math.round(settlementResults.find((r) => r.memberId === myMemberId)?.balance ?? 0)
+    : 0;
 
   const pendingTodoCount = project.todos.filter((t) => !t.isDone).length;
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
@@ -369,8 +373,11 @@ export default function ProjectPage() {
             <p className="tix-mono text-base sm:text-lg font-bold text-[#12222D]">{project.expenses.length}<span className="text-xs font-normal text-[#5B6B72] ml-0.5">건</span></p>
           </div>
           <div className="bg-[#F6F7F2] rounded-sm p-3 sm:p-4 border border-[#12222D]/12 min-w-0 flex items-center justify-between sm:block">
-            <p className="text-[10px] tracking-[0.1em] uppercase text-[#5B6B72] sm:mb-1.5">인당 평균</p>
-            <p className="tix-mono text-base sm:text-lg font-bold text-[#12222D]">{project.members.length > 0 ? Math.round(totalExpense / project.members.length).toLocaleString() : 0}<span className="text-xs font-normal text-[#5B6B72] ml-0.5">원</span></p>
+            <p className="text-[10px] tracking-[0.1em] uppercase text-[#5B6B72] sm:mb-1.5">정산 예정 금액</p>
+            <p className={`tix-mono text-base sm:text-lg font-bold ${mySettlementBalance > 0 ? "text-emerald-600" : mySettlementBalance < 0 ? "text-red-500" : "text-[#12222D]"}`}>
+              {mySettlementBalance > 0 ? "+" : mySettlementBalance < 0 ? "-" : ""}
+              {formatAmount(Math.abs(mySettlementBalance))}
+            </p>
           </div>
         </div>
       </div>
