@@ -42,8 +42,6 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showPreTrip, setShowPreTrip] = useState(true);
-  // 사전결제/날짜 구분 없이 개인경비 전체를 한 번에 켜고 끄는 토글
-  const [showPersonal, setShowPersonal] = useState(true);
   // 날짜 섹션도 사전결제처럼 각각 독립적으로 접고 펼 수 있게 관리
   const [collapsedDates, setCollapsedDates] = useState<Set<string>>(new Set());
   const toggleDateCollapse = (date: string) => {
@@ -65,13 +63,14 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
     }
   };
 
-  // 사전결제 - 개인경비 포함 전체, 날짜 무관 별도 섹션 (개인경비도 같은 티켓에 합쳐서 표시하고
-  // "개인경비 보기" 토글로 켜고 끔)
-  const preTripExpenses = expenses.filter((e) => Boolean(e.isPreTrip) === true);
-  const visiblePreTripExpenses = showPersonal
-    ? preTripExpenses
-    : preTripExpenses.filter((e) => !Boolean(e.isPersonal));
-  const preTripVisibleTotal = visiblePreTripExpenses.reduce((s, e) => s + e.amount, 0);
+  // 사전결제(개인 아닌 것) - 날짜 무관 별도 섹션
+  const preTripExpenses = expenses.filter(
+    (e) => Boolean(e.isPreTrip) === true && Boolean(e.isPersonal) !== true
+  );
+  // 사전결제이면서 개인경비인 것 - 사전결제 섹션 바로 아래 별도 그룹으로 표시
+  const personalPreTripExpenses = expenses.filter(
+    (e) => Boolean(e.isPreTrip) === true && Boolean(e.isPersonal) === true
+  );
   // 나머지(사전결제 아닌 것)는 개인경비 여부와 무관하게 전부 날짜별로 그룹핑
   const tripExpenses = expenses.filter((e) => Boolean(e.isPreTrip) !== true);
 
@@ -105,8 +104,6 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
     return acc;
   }, {});
   const sortedDates = Object.keys(grouped).sort((a, b) => a.localeCompare(b));
-
-  const anyPersonalExpenses = expenses.some((e) => Boolean(e.isPersonal));
 
   const renderExpenseRow = (expense: Expense, idx: number) => {
     const catConfig = CATEGORY_CONFIG[expense.category];
@@ -308,23 +305,24 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
     );
   };
 
+  // 개인경비 섹션(사전결제 아래 / 날짜별 그룹 아래 공통) - 조용한 라벨만, 뱃지/접기 없음
+  const renderPersonalSection = (list: Expense[]) => {
+    if (list.length === 0) return null;
+    return (
+      <div>
+        <div className="flex items-center gap-1.5 text-xs text-violet-600 font-medium mb-1.5 px-0.5">
+          <User className="w-3 h-3" />
+          개인 경비
+        </div>
+        {renderExpenseTicket(list)}
+      </div>
+    );
+  };
+
   return (
     <>
-      {anyPersonalExpenses && (
-        <div className="flex items-center justify-end mb-3">
-          <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={showPersonal}
-              onChange={(e) => setShowPersonal(e.target.checked)}
-              className="w-3.5 h-3.5 rounded accent-violet-600"
-            />
-            개인경비 포함하기
-          </label>
-        </div>
-      )}
       <div className="space-y-6">
-        {/* ✈️ 사전 결제 섹션 - 개인경비 포함 전체, 날짜 무관 독립 분류 */}
+        {/* ✈️ 사전 결제 섹션 - 날짜 무관 독립 분류 */}
         {preTripExpenses.length > 0 && (
           <div>
             <div className="flex items-center justify-between w-full mb-3 gap-2">
@@ -341,7 +339,7 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
 
               <div className="flex items-center gap-3 min-w-0">
                 <span className="tix-mono text-xs font-bold text-amber-600 whitespace-nowrap">
-                  {formatAmount(preTripVisibleTotal)}
+                  {formatAmount(preTripExpenses.reduce((s, e) => s + e.amount, 0))}
                 </span>
                 <button onClick={() => setShowPreTrip((v) => !v)} className="shrink-0">
                   {showPreTrip ? (
@@ -362,69 +360,86 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
                   transition={{ duration: 0.2 }}
                   className="overflow-hidden"
                 >
-                  {renderExpenseTicket(visiblePreTripExpenses)}
+                  {renderExpenseTicket(preTripExpenses)}
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
         )}
 
-        {/* 📅 여행 중 지출 - 날짜별 그룹, 사전결제와 동일한 뱃지+토글+접기 디자인 */}
+        {/* 👤 사전결제 개인경비 섹션 - 사전결제 섹션 바로 아래, 날짜별 개인경비와 동일한 디자인 */}
+        {personalPreTripExpenses.length > 0 && (
+          <div className={preTripExpenses.length > 0 ? "mt-2" : ""}>
+            {renderPersonalSection(personalPreTripExpenses)}
+          </div>
+        )}
+
+        {/* 📅 여행 중 지출 - 날짜별 그룹, 사전결제와 동일한 뱃지+접기 디자인, 개인경비는 아래 별도 그룹 */}
         {sortedDates.map((date) => {
           const dayExpenses = grouped[date];
-          const visibleDayExpenses = showPersonal
-            ? dayExpenses
-            : dayExpenses.filter((e) => !Boolean(e.isPersonal));
-          const visibleDayTotal = visibleDayExpenses.reduce((s, e) => s + e.amount, 0);
+          const daySplitExpenses = dayExpenses.filter((e) => !Boolean(e.isPersonal));
+          const dayPersonalExpenses = dayExpenses.filter((e) => Boolean(e.isPersonal));
           const isDateOpen = !collapsedDates.has(date);
           const dateLabel = date !== "날짜 없음" ? formatDate(date) : "날짜 미지정";
 
           return (
             <div key={date}>
-              <div className="flex items-center justify-between w-full mb-3 gap-2">
-                <button
-                  onClick={() => toggleDateCollapse(date)}
-                  className="flex items-center gap-1.5 bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-full shrink-0"
-                >
-                  <span className="text-xs font-bold">{dateLabel}</span>
-                  <span className="text-xs bg-indigo-200 text-indigo-800 rounded-full px-1.5 py-0.5 font-bold ml-0.5">
-                    {dayExpenses.length}
-                  </span>
-                </button>
+              {daySplitExpenses.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between w-full mb-3 gap-2">
+                    <button
+                      onClick={() => toggleDateCollapse(date)}
+                      className="flex items-center gap-1.5 bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-full shrink-0"
+                    >
+                      <span className="text-xs font-bold">{dateLabel}</span>
+                      <span className="text-xs bg-indigo-200 text-indigo-800 rounded-full px-1.5 py-0.5 font-bold ml-0.5">
+                        {daySplitExpenses.length}
+                      </span>
+                    </button>
 
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="tix-mono text-xs font-bold text-indigo-600 whitespace-nowrap">
-                    {formatAmount(visibleDayTotal)}
-                  </span>
-                  <button onClick={() => toggleDateCollapse(date)} className="shrink-0">
-                    {isDateOpen ? (
-                      <ChevronUp className="w-4 h-4 text-indigo-400" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-indigo-400" />
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="tix-mono text-xs font-bold text-indigo-600 whitespace-nowrap">
+                        {formatAmount(daySplitExpenses.reduce((s, e) => s + e.amount, 0))}
+                      </span>
+                      <button onClick={() => toggleDateCollapse(date)} className="shrink-0">
+                        {isDateOpen ? (
+                          <ChevronUp className="w-4 h-4 text-indigo-400" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-indigo-400" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <AnimatePresence>
+                    {isDateOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                      >
+                        {renderExpenseTicket(daySplitExpenses)}
+                      </motion.div>
                     )}
-                  </button>
+                  </AnimatePresence>
                 </div>
-              </div>
+              )}
 
-              <AnimatePresence>
-                {isDateOpen && visibleDayExpenses.length > 0 && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="overflow-hidden"
-                  >
-                    {renderExpenseTicket(visibleDayExpenses)}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {dayPersonalExpenses.length > 0 && (
+                <div className={daySplitExpenses.length > 0 ? "mt-2" : ""}>
+                  {renderPersonalSection(dayPersonalExpenses)}
+                </div>
+              )}
             </div>
           );
         })}
 
         {/* 여행 중 지출이 없고 사전 결제/개인경비만 있는 경우 - "전체" 보기에서만, 사전결제만 필터링해서 볼 땐 안 뜨게 */}
-        {!selectedDate && tripExpenses.length === 0 && preTripExpenses.length > 0 && (
+        {!selectedDate &&
+          tripExpenses.length === 0 &&
+          (preTripExpenses.length > 0 || personalPreTripExpenses.length > 0) && (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <p className="text-sm text-gray-400">여행 중 지출이 없어요</p>
             <p className="text-xs text-gray-300 mt-1">
