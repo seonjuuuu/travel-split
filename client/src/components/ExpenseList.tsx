@@ -42,7 +42,6 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showPreTrip, setShowPreTrip] = useState(true);
-  const [showPersonal, setShowPersonal] = useState(true);
 
   const handleDelete = (expenseId: string) => {
     if (deleteConfirm === expenseId) {
@@ -341,47 +340,14 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
           </div>
         )}
 
-        {/* 👤 사전결제 개인경비 섹션 - 사전결제 섹션 바로 아래, 정산 제외 */}
+        {/* 👤 사전결제 개인경비 섹션 - 사전결제 섹션 바로 아래, 날짜별 개인경비와 동일한 디자인 */}
         {personalPreTripExpenses.length > 0 && (
-          <div>
-            <button
-              onClick={() => setShowPersonal((v) => !v)}
-              className="flex items-center justify-between w-full mb-3 group"
-            >
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5 bg-violet-100 text-violet-700 px-3 py-1.5 rounded-full">
-                  <User className="w-3.5 h-3.5" />
-                  <span className="text-xs font-bold">개인 경비 (사전결제)</span>
-                  <span className="text-xs bg-violet-200 text-violet-800 rounded-full px-1.5 py-0.5 font-bold ml-0.5">
-                    {personalPreTripExpenses.length}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="tix-mono text-xs font-bold text-violet-600">
-                  {formatAmount(personalPreTripExpenses.reduce((s, e) => s + e.amount, 0))}
-                </span>
-                {showPersonal ? (
-                  <ChevronUp className="w-4 h-4 text-violet-400" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-violet-400" />
-                )}
-              </div>
-            </button>
-
-            <AnimatePresence>
-              {showPersonal && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="overflow-hidden"
-                >
-                  {renderExpenseTicket(personalPreTripExpenses)}
-                </motion.div>
-              )}
-            </AnimatePresence>
+          <div className={preTripExpenses.length > 0 ? "mt-2" : ""}>
+            <div className="flex items-center gap-1.5 text-xs text-violet-600 font-semibold mb-1.5 px-0.5">
+              <User className="w-3 h-3" />
+              개인 경비
+            </div>
+            {renderExpenseTicket(personalPreTripExpenses)}
           </div>
         )}
 
