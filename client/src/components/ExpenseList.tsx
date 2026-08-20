@@ -43,6 +43,16 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showPreTrip, setShowPreTrip] = useState(true);
   const [showPersonalInPreTrip, setShowPersonalInPreTrip] = useState(true);
+  // 날짜별 그룹의 "개인경비 보기" 토글은 날짜마다 독립적으로 관리 (꺼둔 날짜만 이 안에 들어감)
+  const [hiddenPersonalDates, setHiddenPersonalDates] = useState<Set<string>>(new Set());
+  const toggleDayPersonal = (date: string) => {
+    setHiddenPersonalDates((prev) => {
+      const next = new Set(prev);
+      if (next.has(date)) next.delete(date);
+      else next.add(date);
+      return next;
+    });
+  };
 
   const handleDelete = (expenseId: string) => {
     if (deleteConfirm === expenseId) {
@@ -293,20 +303,6 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
     );
   };
 
-  // 개인경비 섹션(사전결제 아래 / 날짜별 그룹 아래 공통) - 조용한 라벨만, 뱃지/접기 없음
-  const renderPersonalSection = (list: Expense[]) => {
-    if (list.length === 0) return null;
-    return (
-      <div>
-        <div className="flex items-center gap-1.5 text-xs text-violet-600 font-medium mb-1.5 px-0.5">
-          <User className="w-3 h-3" />
-          개인 경비
-        </div>
-        {renderExpenseTicket(list)}
-      </div>
-    );
-  };
-
   return (
     <>
       <div className="space-y-6">
@@ -366,37 +362,47 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
           </div>
         )}
 
-        {/* 📅 여행 중 지출 - 날짜별 그룹, 그 안에서 분담/개인경비 다시 분리 */}
+        {/* 📅 여행 중 지출 - 날짜별 그룹, 개인경비도 같은 티켓에 합치고 "개인경비 보기"로 토글 */}
         {sortedDates.map((date) => {
           const dayExpenses = grouped[date];
-          const daySplitExpenses = dayExpenses.filter((e) => !Boolean(e.isPersonal));
           const dayPersonalExpenses = dayExpenses.filter((e) => Boolean(e.isPersonal));
           const dayTotal = dayExpenses.reduce((s, e) => s + e.amount, 0);
+          const showDayPersonal = !hiddenPersonalDates.has(date);
+          const visibleDayExpenses = showDayPersonal
+            ? dayExpenses
+            : dayExpenses.filter((e) => !Boolean(e.isPersonal));
 
           return (
             <div key={date}>
               {/* 날짜 헤더 - 조용한 텍스트, 뱃지/접기 없음 */}
               {!selectedDate && (
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-indigo-400 rounded-full" />
-                    <span className="text-sm font-semibold text-gray-700">
+                <div className="flex items-center justify-between mb-3 gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-2 h-2 bg-indigo-400 rounded-full shrink-0" />
+                    <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">
                       {date !== "날짜 없음" ? formatDate(date) : "날짜 미지정"}
                     </span>
                   </div>
-                  <span className="tix-mono text-xs font-medium text-gray-400">
-                    {formatAmount(dayTotal)}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    {dayPersonalExpenses.length > 0 && (
+                      <label className="flex items-center gap-1 text-[10px] text-gray-400 whitespace-nowrap cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={showDayPersonal}
+                          onChange={() => toggleDayPersonal(date)}
+                          className="w-3 h-3 rounded accent-violet-600"
+                        />
+                        개인경비 보기
+                      </label>
+                    )}
+                    <span className="tix-mono text-xs font-medium text-gray-400 whitespace-nowrap">
+                      {formatAmount(dayTotal)}
+                    </span>
+                  </div>
                 </div>
               )}
 
-              {daySplitExpenses.length > 0 && renderExpenseTicket(daySplitExpenses)}
-
-              {dayPersonalExpenses.length > 0 && (
-                <div className={daySplitExpenses.length > 0 ? "mt-2" : ""}>
-                  {renderPersonalSection(dayPersonalExpenses)}
-                </div>
-              )}
+              {visibleDayExpenses.length > 0 && renderExpenseTicket(visibleDayExpenses)}
             </div>
           );
         })}
