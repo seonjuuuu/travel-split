@@ -665,7 +665,8 @@ var appRouter = router({
             getMembersByProjectId(project.id),
             getExpensesByProjectId(project.id)
           ]);
-          const totalAmount = expenseRows.reduce((s, e) => s + e.amount, 0);
+          const myMemberId = members.find((m) => m.profileId === ctx.user.id)?.id;
+          const totalAmount = expenseRows.filter((e) => !Boolean(e.isPersonal) || e.payerId === myMemberId).reduce((s, e) => s + e.amount, 0);
           return { ...project, members, totalAmount };
         })
       );

@@ -167,7 +167,11 @@ export const appRouter = router({
             getMembersByProjectId(project.id),
             getExpensesByProjectId(project.id),
           ]);
-          const totalAmount = expenseRows.reduce((s, e) => s + e.amount, 0);
+          const myMemberId = members.find((m) => m.profileId === ctx.user.id)?.id;
+          // 다른 사람의 개인경비는 상세 페이지와 동일하게 합계에서 제외
+          const totalAmount = expenseRows
+            .filter((e) => !Boolean(e.isPersonal) || e.payerId === myMemberId)
+            .reduce((s, e) => s + e.amount, 0);
           return { ...project, members, totalAmount };
         })
       );
