@@ -53,6 +53,16 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
       return next;
     });
   };
+  // 날짜 섹션도 사전결제처럼 각각 독립적으로 접고 펼 수 있게 관리
+  const [collapsedDates, setCollapsedDates] = useState<Set<string>>(new Set());
+  const toggleDateCollapse = (date: string) => {
+    setCollapsedDates((prev) => {
+      const next = new Set(prev);
+      if (next.has(date)) next.delete(date);
+      else next.add(date);
+      return next;
+    });
+  };
 
   const handleDelete = (expenseId: string) => {
     if (deleteConfirm === expenseId) {
@@ -364,7 +374,7 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
           </div>
         )}
 
-        {/* 📅 여행 중 지출 - 날짜별 그룹, 개인경비도 같은 티켓에 합치고 "개인경비 보기"로 토글 */}
+        {/* 📅 여행 중 지출 - 날짜별 그룹, 사전결제와 동일한 뱃지+토글+접기 디자인 */}
         {sortedDates.map((date) => {
           const dayExpenses = grouped[date];
           const dayPersonalExpenses = dayExpenses.filter((e) => Boolean(e.isPersonal));
@@ -373,38 +383,60 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
           const visibleDayExpenses = showDayPersonal
             ? dayExpenses
             : dayExpenses.filter((e) => !Boolean(e.isPersonal));
+          const isDateOpen = !collapsedDates.has(date);
+          const dateLabel = date !== "날짜 없음" ? formatDate(date) : "날짜 미지정";
 
           return (
             <div key={date}>
-              {/* 날짜 헤더 - 조용한 텍스트, 뱃지/접기 없음 */}
-              {!selectedDate && (
-                <div className="flex items-center justify-between mb-3 gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-2 h-2 bg-indigo-400 rounded-full shrink-0" />
-                    <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">
-                      {date !== "날짜 없음" ? formatDate(date) : "날짜 미지정"}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {dayPersonalExpenses.length > 0 && (
-                      <label className="flex items-center gap-1 text-[10px] text-gray-400 whitespace-nowrap cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={showDayPersonal}
-                          onChange={() => toggleDayPersonal(date)}
-                          className="w-3 h-3 rounded accent-violet-600"
-                        />
-                        개인경비 보기
-                      </label>
-                    )}
-                    <span className="tix-mono text-xs font-medium text-gray-400 whitespace-nowrap">
-                      {formatAmount(dayTotal)}
-                    </span>
-                  </div>
-                </div>
-              )}
+              <div className="flex items-center justify-between w-full mb-3 gap-2">
+                <button
+                  onClick={() => toggleDateCollapse(date)}
+                  className="flex items-center gap-1.5 bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-full shrink-0"
+                >
+                  <span className="text-xs font-bold">{dateLabel}</span>
+                  <span className="text-xs bg-indigo-200 text-indigo-800 rounded-full px-1.5 py-0.5 font-bold ml-0.5">
+                    {dayExpenses.length}
+                  </span>
+                </button>
 
-              {visibleDayExpenses.length > 0 && renderExpenseTicket(visibleDayExpenses)}
+                <div className="flex items-center gap-3 min-w-0">
+                  {dayPersonalExpenses.length > 0 && (
+                    <label className="flex items-center gap-1 text-[10px] text-gray-400 whitespace-nowrap cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={showDayPersonal}
+                        onChange={() => toggleDayPersonal(date)}
+                        className="w-3 h-3 rounded accent-violet-600"
+                      />
+                      개인경비 보기
+                    </label>
+                  )}
+                  <span className="tix-mono text-xs font-bold text-indigo-600 whitespace-nowrap">
+                    {formatAmount(dayTotal)}
+                  </span>
+                  <button onClick={() => toggleDateCollapse(date)} className="shrink-0">
+                    {isDateOpen ? (
+                      <ChevronUp className="w-4 h-4 text-indigo-400" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-indigo-400" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <AnimatePresence>
+                {isDateOpen && visibleDayExpenses.length > 0 && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    {renderExpenseTicket(visibleDayExpenses)}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           );
         })}
