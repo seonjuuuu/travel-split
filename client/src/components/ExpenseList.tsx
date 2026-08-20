@@ -115,6 +115,19 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
   }, {});
   const sortedDates = Object.keys(grouped).sort((a, b) => a.localeCompare(b));
 
+  // 사전결제/날짜별 "개인경비 보기" 토글을 한 번에 켜고 끄는 전체 스위치
+  const anyPersonalExpenses = expenses.some((e) => Boolean(e.isPersonal));
+  const allPersonalVisible = showPersonalInPreTrip && hiddenPersonalDates.size === 0;
+  const toggleAllPersonal = () => {
+    if (allPersonalVisible) {
+      setShowPersonalInPreTrip(false);
+      setHiddenPersonalDates(new Set(sortedDates));
+    } else {
+      setShowPersonalInPreTrip(true);
+      setHiddenPersonalDates(new Set());
+    }
+  };
+
   const renderExpenseRow = (expense: Expense, idx: number) => {
     const catConfig = CATEGORY_CONFIG[expense.category];
     const payer = project.members.find((m) => m.id === expense.payerId);
@@ -317,6 +330,19 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
 
   return (
     <>
+      {anyPersonalExpenses && (
+        <div className="flex items-center justify-end mb-3">
+          <label className="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={allPersonalVisible}
+              onChange={toggleAllPersonal}
+              className="w-3.5 h-3.5 rounded accent-violet-600"
+            />
+            개인경비 전체 보기
+          </label>
+        </div>
+      )}
       <div className="space-y-6">
         {/* ✈️ 사전 결제 섹션 - 개인경비 포함 전체, 날짜 무관 독립 분류 */}
         {preTripExpenses.length > 0 && (
