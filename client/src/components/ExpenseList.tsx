@@ -214,10 +214,17 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
           </div>
 
           {/* 금액 스텁 */}
-          <div className="flex sm:flex-col items-center sm:items-end justify-end sm:justify-center gap-2 sm:gap-1 px-4 pb-3 sm:pb-0 sm:min-w-[92px]">
-            <span className="tix-mono font-bold text-gray-900 text-sm whitespace-nowrap">
-              {formatAmount(expense.amount)}
-            </span>
+          <div className="flex sm:flex-col items-center sm:items-end justify-end sm:justify-center gap-2 sm:gap-0.5 px-4 pb-3 sm:pb-0 sm:min-w-[92px]">
+            <div className="flex sm:flex-col items-baseline sm:items-end gap-1.5 sm:gap-0">
+              <span className="tix-mono font-bold text-gray-900 text-sm whitespace-nowrap">
+                {formatAmount(expense.amount)}
+              </span>
+              {!isPersonalCard && (
+                <span className="text-[10px] text-gray-400 whitespace-nowrap">
+                  인당 {formatAmount(Math.round(expense.amount / (isSharedCostCard ? memberCount : participants.length || 1)))}
+                </span>
+              )}
+            </div>
             {isExpanded ? (
               <ChevronUp className="w-3.5 h-3.5 text-gray-400" />
             ) : (
@@ -375,9 +382,6 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
                 )}
                 <span className="tix-mono text-xs font-bold text-amber-600 whitespace-nowrap">
                   {formatAmount(preTripVisibleTotal)}
-                  <span className="text-[10px] font-normal text-amber-400 ml-1">
-                    (인당 {formatAmount(Math.round(preTripVisibleTotal / memberCount))})
-                  </span>
                 </span>
                 <button onClick={() => setShowPreTrip((v) => !v)} className="shrink-0">
                   {showPreTrip ? (
@@ -444,9 +448,6 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
                   )}
                   <span className="tix-mono text-xs font-bold text-indigo-600 whitespace-nowrap">
                     {formatAmount(visibleDayTotal)}
-                    <span className="text-[10px] font-normal text-indigo-400 ml-1">
-                      (인당 {formatAmount(Math.round(visibleDayTotal / memberCount))})
-                    </span>
                   </span>
                   <button onClick={() => toggleDateCollapse(date)} className="shrink-0">
                     {isDateOpen ? (
