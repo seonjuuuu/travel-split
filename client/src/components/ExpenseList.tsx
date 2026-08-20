@@ -82,7 +82,6 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
     ? preTripExpenses
     : preTripExpenses.filter((e) => !Boolean(e.isPersonal));
   const preTripVisibleTotal = visiblePreTripExpenses.reduce((s, e) => s + e.amount, 0);
-  const memberCount = project.members.length || 1;
   // 나머지(사전결제 아닌 것)는 개인경비 여부와 무관하게 전부 날짜별로 그룹핑
   const tripExpenses = expenses.filter((e) => Boolean(e.isPreTrip) !== true);
 
@@ -214,17 +213,10 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
           </div>
 
           {/* 금액 스텁 */}
-          <div className="flex sm:flex-col items-center sm:items-end justify-end sm:justify-center gap-2 sm:gap-0.5 px-4 pb-3 sm:pb-0 sm:min-w-[92px]">
-            <div className="flex sm:flex-col items-baseline sm:items-end gap-1.5 sm:gap-0">
-              <span className="tix-mono font-bold text-gray-900 text-sm whitespace-nowrap">
-                {formatAmount(expense.amount)}
-              </span>
-              {!isPersonalCard && (
-                <span className="text-[10px] text-gray-400 whitespace-nowrap">
-                  인당 {formatAmount(Math.round(expense.amount / (isSharedCostCard ? memberCount : participants.length || 1)))}
-                </span>
-              )}
-            </div>
+          <div className="flex sm:flex-col items-center sm:items-end justify-end sm:justify-center gap-2 sm:gap-1 px-4 pb-3 sm:pb-0 sm:min-w-[92px]">
+            <span className="tix-mono font-bold text-gray-900 text-sm whitespace-nowrap">
+              {formatAmount(expense.amount)}
+            </span>
             {isExpanded ? (
               <ChevronUp className="w-3.5 h-3.5 text-gray-400" />
             ) : (
