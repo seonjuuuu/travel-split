@@ -473,8 +473,8 @@ export default function ProjectPage() {
                 .filter((e) => Boolean(e.isSharedCost))
                 .reduce((s, e) => s + e.amount / memberCount, 0);
               return (
-                <div className="mt-3 p-3 rounded-sm flex flex-wrap items-center gap-x-4 gap-y-2" style={{ backgroundColor: member.color + "18" }}>
-                  <div className="flex items-center gap-2 min-w-0 mr-auto">
+                <div className="mt-3 p-3 rounded-sm" style={{ backgroundColor: member.color + "18" }}>
+                  <div className="flex items-center gap-2 mb-3">
                     <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0" style={{ backgroundColor: member.color }}>
                       {member.name[0]}
                     </div>
@@ -483,26 +483,28 @@ export default function ProjectPage() {
                       <p className="text-xs text-gray-500 whitespace-nowrap">{filteredExpenses.length}건 표시 중</p>
                     </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-xs text-gray-400">결제한 금액</p>
-                    <p className="tix-mono text-sm font-bold text-gray-900">{paid.toLocaleString()}원</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-xs text-gray-400">부담 금액</p>
-                    <p className="tix-mono text-sm font-bold text-gray-900">{Math.round(participated).toLocaleString()}원</p>
-                  </div>
-                  {sharedCostPaid > 0 && (
-                    <div className="text-right shrink-0">
-                      <p className="text-xs text-gray-400">공동경비</p>
-                      <p className="tix-mono text-sm font-bold text-emerald-600">{Math.round(sharedCostPaid).toLocaleString()}원</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-2.5">
+                    <div>
+                      <p className="text-xs text-gray-400">결제한 금액</p>
+                      <p className="tix-mono text-sm font-bold text-gray-900">{paid.toLocaleString()}원</p>
                     </div>
-                  )}
-                  {personalPaid > 0 && (
-                    <div className="text-right shrink-0">
-                      <p className="text-xs text-gray-400">개인경비</p>
-                      <p className="tix-mono text-sm font-bold text-violet-600">{Math.round(personalPaid).toLocaleString()}원</p>
+                    <div>
+                      <p className="text-xs text-gray-400">부담 금액</p>
+                      <p className="tix-mono text-sm font-bold text-gray-900">{Math.round(participated).toLocaleString()}원</p>
                     </div>
-                  )}
+                    {sharedCostPaid > 0 && (
+                      <div>
+                        <p className="text-xs text-gray-400">공동경비</p>
+                        <p className="tix-mono text-sm font-bold text-emerald-600">{Math.round(sharedCostPaid).toLocaleString()}원</p>
+                      </div>
+                    )}
+                    {personalPaid > 0 && (
+                      <div>
+                        <p className="text-xs text-gray-400">개인경비</p>
+                        <p className="tix-mono text-sm font-bold text-violet-600">{Math.round(personalPaid).toLocaleString()}원</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })()}
