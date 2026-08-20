@@ -212,35 +212,37 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
               className="overflow-hidden"
             >
               <div className="px-4 pb-4 border-t border-gray-50 pt-3">
-                {/* 참여자 */}
-                <div className="mb-3">
-                  <p className="text-xs text-gray-400 mb-2">분담 멤버</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {participants.map((m) =>
-                      m ? (
-                        <div
-                          key={m.id}
-                          className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium"
-                          style={{
-                            backgroundColor: m.color + "20",
-                            color: m.color,
-                          }}
-                        >
+                {/* 참여자 - 개인경비는 항상 결제자 혼자라 의미 없어서 생략 */}
+                {!isPersonalCard && (
+                  <div className="mb-3">
+                    <p className="text-xs text-gray-400 mb-2">분담 멤버</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {participants.map((m) =>
+                        m ? (
                           <div
-                            className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[9px] font-bold"
-                            style={{ backgroundColor: m.color }}
+                            key={m.id}
+                            className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium"
+                            style={{
+                              backgroundColor: m.color + "20",
+                              color: m.color,
+                            }}
                           >
-                            {m.name[0]}
+                            <div
+                              className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[9px] font-bold"
+                              style={{ backgroundColor: m.color }}
+                            >
+                              {m.name[0]}
+                            </div>
+                            {m.name}
+                            <span className="text-gray-400 ml-0.5">
+                              ({formatAmount(Math.round(expense.amount / participants.length))})
+                            </span>
                           </div>
-                          {m.name}
-                          <span className="text-gray-400 ml-0.5">
-                            ({formatAmount(Math.round(expense.amount / participants.length))})
-                          </span>
-                        </div>
-                      ) : null
-                    )}
+                        ) : null
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {expense.note && (
                   <p className="flex items-start gap-1.5 text-xs text-gray-500 mb-3 bg-gray-50 rounded-lg px-3 py-2">
