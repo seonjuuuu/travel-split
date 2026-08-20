@@ -319,7 +319,7 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
               onChange={(e) => setShowPersonal(e.target.checked)}
               className="w-3.5 h-3.5 rounded accent-violet-600"
             />
-            개인경비 전체 보기
+            개인경비 포함하기
           </label>
         </div>
       )}
