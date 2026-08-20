@@ -1,0 +1,1 @@
+ALTER TABLE "expenses" ADD COLUMN "deleteVotes" varchar(2000) DEFAULT '[]' NOT NULL;

@@ -337,6 +337,9 @@ var expenses = pgTable("expenses", {
   // 공동경비 - 정산 제외
   isPersonal: boolean("isPersonal").default(false).notNull(),
   // 개인경비 - 정산 제외, 결제자 본인 지출로만 기록
+  // 삭제 동의 - 이해관계자(결제자+분담 멤버, 공동경비는 전체 멤버) 중 계정 연결된 사람 전원이
+  // 여기 포함되면 실제로 row가 삭제됨. 그전까진 본인 화면에서만 안 보임.
+  deleteVotes: varchar("deleteVotes", { length: 2e3 }).notNull().default("[]"),
   note: text("note"),
   createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updatedAt", { withTimezone: true }).defaultNow().notNull()
@@ -600,6 +603,7 @@ function mapExpenseRow(e) {
   return {
     ...e,
     participantIds: JSON.parse(e.participantIds || "[]"),
+    deleteVotes: JSON.parse(e.deleteVotes || "[]"),
     isPreTrip: Boolean(e.isPreTrip),
     isSharedCost: Boolean(e.isSharedCost),
     isPersonal: Boolean(e.isPersonal)
@@ -951,12 +955,27 @@ var appRouter = router({
       });
       return { success: true };
     }),
+    // 삭제 = "나 이 지출에서 빠질게". 이해관계자(결제자+분담 멤버, 공동경비면 전체 멤버) 중
+    // 계정 연결된 사람 전원이 빠지면 그때 실제로 삭제됨. 다시 누르면 취소(다시 들어옴).
     delete: protectedProcedure.input(z2.object({ id: z2.string() })).mutation(async ({ ctx, input }) => {
       const expense = await getExpenseById(input.id);
       if (!expense) throw new TRPCError3({ code: "NOT_FOUND", message: "\uC9C0\uCD9C\uC744 \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4" });
-      await assertProjectAccess(expense.projectId, ctx.user.id);
-      await deleteExpense(input.id);
-      return { success: true };
+      const access = await assertProjectAccess(expense.projectId, ctx.user.id);
+      const members = await getMembersByProjectId(expense.projectId);
+      const participantIds = JSON.parse(expense.participantIds || "[]");
+      const stakeholderIds = Boolean(expense.isSharedCost) ? members.map((m) => m.id) : Array.from(/* @__PURE__ */ new Set([expense.payerId, ...participantIds]));
+      const requiredIds = stakeholderIds.filter(
+        (id) => members.find((m) => m.id === id)?.profileId != null
+      );
+      const currentVotes = JSON.parse(expense.deleteVotes || "[]");
+      const nextVotes = currentVotes.includes(access.memberId) ? currentVotes.filter((id) => id !== access.memberId) : [...currentVotes, access.memberId];
+      const allLeft = requiredIds.length === 0 || requiredIds.every((id) => nextVotes.includes(id));
+      if (allLeft) {
+        await deleteExpense(input.id);
+        return { success: true, deleted: true };
+      }
+      await updateExpense(input.id, { deleteVotes: JSON.stringify(nextVotes) });
+      return { success: true, deleted: false };
     })
   }),
   // ── 할일 ─────────────────────────────────────────────────────────

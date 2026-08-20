@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trash2, Edit2, ChevronDown, ChevronUp, Clock, Plane, Receipt, StickyNote, User, Users } from "lucide-react";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import type { Expense, TravelProject } from "@/lib/types";
 import { CATEGORY_CONFIG, formatAmount, formatDate } from "@/lib/types";
@@ -18,7 +19,16 @@ interface Props {
   onRefresh?: () => void;
 }
 
-export default function ExpenseList({ project, expenses, selectedDate, selectedMemberId, onRefresh }: Props) {
+export default function ExpenseList({ project, expenses: allExpenses, selectedDate, selectedMemberId, onRefresh }: Props) {
+  const { user } = useAuth();
+  const myMemberId =
+    project.members.find((m) => m.profileId === user?.id)?.id ??
+    project.members.find((m) => m.isMe)?.id;
+  // 내가 "삭제(나가기)"를 누른 지출은 실제로 완전히 지워지기 전까지도 내 화면에서만 안 보이게
+  const expenses = myMemberId
+    ? allExpenses.filter((e) => !(e.deleteVotes ?? []).includes(myMemberId))
+    : allExpenses;
+
   const utils = trpc.useUtils();
   const deleteExpenseMutation = trpc.expenses.delete.useMutation({
     onMutate: async (vars) => {
@@ -26,7 +36,17 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
       const prev = utils.projects.get.getData({ id: project.id });
       utils.projects.get.setData({ id: project.id }, (old) => {
         if (!old) return old;
-        return { ...old, expenses: old.expenses.filter((e) => e.id !== vars.id) };
+        return {
+          ...old,
+          expenses: old.expenses.map((e) => {
+            if (e.id !== vars.id || !myMemberId) return e;
+            const votes = e.deleteVotes ?? [];
+            const nextVotes = votes.includes(myMemberId)
+              ? votes.filter((id) => id !== myMemberId)
+              : [...votes, myMemberId];
+            return { ...e, deleteVotes: nextVotes };
+          }),
+        };
       });
       return { prev };
     },

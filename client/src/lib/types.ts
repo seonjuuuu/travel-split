@@ -83,6 +83,7 @@ export interface Expense {
   isPreTrip?: boolean; // 여행 전 사전 결제 여부 (날짜 무관)
   isSharedCost?: boolean; // 공동경비 - 정산 제외 (결제자 없이 공동 부담)
   isPersonal?: boolean; // 개인경비 - 정산 제외, 결제자 본인의 지출로만 기록
+  deleteVotes?: string[]; // 삭제(나가기) 누른 사람들의 memberId - 이해관계자 전원이 모이면 실제 삭제됨
 }
 
 export interface Todo {

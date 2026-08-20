@@ -72,6 +72,7 @@ function mapExpenseRow(e: DbExpense) {
   return {
     ...e,
     participantIds: JSON.parse(e.participantIds || "[]") as string[],
+    deleteVotes: JSON.parse(e.deleteVotes || "[]") as string[],
     isPreTrip: Boolean(e.isPreTrip),
     isSharedCost: Boolean(e.isSharedCost),
     isPersonal: Boolean(e.isPersonal),
@@ -515,14 +516,40 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    // 삭제 = "나 이 지출에서 빠질게". 이해관계자(결제자+분담 멤버, 공동경비면 전체 멤버) 중
+    // 계정 연결된 사람 전원이 빠지면 그때 실제로 삭제됨. 다시 누르면 취소(다시 들어옴).
     delete: protectedProcedure
       .input(z.object({ id: z.string() }))
       .mutation(async ({ ctx, input }) => {
         const expense = await getExpenseById(input.id);
         if (!expense) throw new TRPCError({ code: "NOT_FOUND", message: "지출을 찾을 수 없습니다" });
-        await assertProjectAccess(expense.projectId, ctx.user.id);
-        await deleteExpense(input.id);
-        return { success: true };
+        const access = await assertProjectAccess(expense.projectId, ctx.user.id);
+
+        const members = await getMembersByProjectId(expense.projectId);
+        const participantIds = JSON.parse(expense.participantIds || "[]") as string[];
+        const stakeholderIds = Boolean(expense.isSharedCost)
+          ? members.map((m) => m.id)
+          : Array.from(new Set([expense.payerId, ...participantIds]));
+        // 계정 연결 안 된(미참여) 이해관계자는 빠질 방법이 없으니 대상에서 제외
+        const requiredIds = stakeholderIds.filter(
+          (id) => members.find((m) => m.id === id)?.profileId != null
+        );
+
+        const currentVotes = JSON.parse(expense.deleteVotes || "[]") as string[];
+        const nextVotes = currentVotes.includes(access.memberId)
+          ? currentVotes.filter((id) => id !== access.memberId)
+          : [...currentVotes, access.memberId];
+
+        const allLeft =
+          requiredIds.length === 0 || requiredIds.every((id) => nextVotes.includes(id));
+
+        if (allLeft) {
+          await deleteExpense(input.id);
+          return { success: true, deleted: true };
+        }
+
+        await updateExpense(input.id, { deleteVotes: JSON.stringify(nextVotes) });
+        return { success: true, deleted: false };
       }),
   }),
 

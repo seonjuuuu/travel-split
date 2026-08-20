@@ -84,6 +84,9 @@ export const expenses = pgTable("expenses", {
   isPreTrip: boolean("isPreTrip").default(false).notNull(),
   isSharedCost: boolean("isSharedCost").default(false).notNull(), // 공동경비 - 정산 제외
   isPersonal: boolean("isPersonal").default(false).notNull(), // 개인경비 - 정산 제외, 결제자 본인 지출로만 기록
+  // 삭제 동의 - 이해관계자(결제자+분담 멤버, 공동경비는 전체 멤버) 중 계정 연결된 사람 전원이
+  // 여기 포함되면 실제로 row가 삭제됨. 그전까진 본인 화면에서만 안 보임.
+  deleteVotes: varchar("deleteVotes", { length: 2000 }).notNull().default("[]"),
   note: text("note"),
   createdAt: timestamp("createdAt", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updatedAt", { withTimezone: true }).defaultNow().notNull(),

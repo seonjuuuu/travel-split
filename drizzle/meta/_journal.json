@@ -43,6 +43,13 @@
       "when": 1787101563214,
       "tag": "0005_eminent_drax",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787207158593,
+      "tag": "0006_minor_giant_man",
+      "breakpoints": true
     }
   ]
 }
