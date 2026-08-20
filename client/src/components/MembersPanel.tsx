@@ -173,7 +173,7 @@ export default function MembersPanel({ open, onClose, project, onRefresh, newMem
               {project.members.length}명이 함께 여행 중
             </p>
             {/* 멤버 색상 미리보기 */}
-            <div className="flex gap-1.5 mt-3">
+            <div className="flex flex-wrap gap-1.5 mt-3">
               {project.members.map((m) => (
                 <div
                   key={m.id}

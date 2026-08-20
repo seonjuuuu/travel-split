@@ -126,10 +126,10 @@ export default function Home() {
             <div className="tix-mono font-bold text-[#12222D] text-lg tracking-tight">
               TRIP<span className="text-indigo-600">·</span>SPLIT
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
               <button
                 onClick={() => setShowProfile(true)}
-                className="flex items-center gap-2 rounded-sm px-1.5 h-9 hover:bg-[#EDEFE7] transition-colors"
+                className="flex items-center gap-2 rounded-sm px-1.5 h-9 hover:bg-[#EDEFE7] transition-colors shrink-0"
                 title="내 프로필"
               >
                 <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
@@ -139,21 +139,23 @@ export default function Home() {
               </button>
               <button
                 onClick={() => setShowJoinByCode(true)}
-                className="bg-[#EDEFE7] hover:bg-[#E4E6DF] text-[#12222D] rounded-sm px-4 h-9 text-sm font-medium flex items-center gap-1.5 transition-colors"
+                className="bg-[#EDEFE7] hover:bg-[#E4E6DF] text-[#12222D] rounded-sm w-9 sm:w-auto sm:px-4 h-9 text-sm font-medium flex items-center justify-center sm:gap-1.5 transition-colors shrink-0"
+                title="초대 코드"
               >
                 <Ticket className="w-4 h-4" />
-                초대 코드
+                <span className="hidden sm:inline">초대 코드</span>
               </button>
               <button
                 onClick={() => setShowCreate(true)}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-sm px-4 h-9 text-sm font-medium flex items-center gap-1.5 transition-colors"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-sm w-9 sm:w-auto sm:px-4 h-9 text-sm font-medium flex items-center justify-center sm:gap-1.5 transition-colors shrink-0"
+                title="새 여행"
               >
                 <Plus className="w-4 h-4" />
-                새 여행
+                <span className="hidden sm:inline">새 여행</span>
               </button>
               <button
                 onClick={logout}
-                className="w-9 h-9 rounded-sm bg-[#EDEFE7] hover:bg-[#E4E6DF] flex items-center justify-center text-[#5B6B72] transition-colors"
+                className="w-9 h-9 rounded-sm bg-[#EDEFE7] hover:bg-[#E4E6DF] flex items-center justify-center text-[#5B6B72] transition-colors shrink-0"
                 title="로그아웃"
               >
                 <LogOut className="w-4 h-4" />
@@ -207,27 +209,27 @@ export default function Home() {
                             exit={{ opacity: 0, scale: 0.95 }}
                             transition={{ delay: idx * 0.05 }}
                             onClick={() => handleOpenProject(project.id)}
-                            className="bg-[#F6F7F2] rounded-sm border border-[#12222D]/12 cursor-pointer hover:shadow-md transition-all duration-200 group relative grid grid-cols-[1fr_auto]"
+                            className="bg-[#F6F7F2] rounded-sm border border-[#12222D]/12 cursor-pointer hover:shadow-md transition-all duration-200 group relative grid grid-cols-1 sm:grid-cols-[1fr_auto] overflow-hidden"
                           >
                             <button
                               onClick={(e) => handleDelete(project.id, e)}
                               className={`absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center transition-all z-10 ${
                                 deleteConfirm === project.id
                                   ? "bg-red-500 text-white"
-                                  : "bg-[#EDEFE7] text-[#5B6B72] opacity-0 group-hover:opacity-100"
+                                  : "bg-[#EDEFE7] text-[#5B6B72] opacity-0 group-hover:opacity-100 sm:group-hover:opacity-100"
                               }`}
                               title={deleteConfirm === project.id ? "한 번 더 클릭하면 삭제됩니다" : "삭제"}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
 
-                            <div className="p-6">
-                              <div className="flex items-center gap-2 mb-1">
+                            <div className="p-5 sm:p-6 min-w-0">
+                              <div className="flex items-center gap-2 mb-1 pr-8 sm:pr-0">
                                 <Plane className="w-4 h-4 text-indigo-600 shrink-0" />
-                                <h3 className="font-bold text-[#12222D] text-xl tracking-tight">{project.destination}</h3>
+                                <h3 className="font-bold text-[#12222D] text-xl tracking-tight truncate">{project.destination}</h3>
                               </div>
-                              <p className="text-sm text-[#5B6B72] mb-4">{project.name}</p>
-                              <div className="flex gap-6 mb-4">
+                              <p className="text-sm text-[#5B6B72] mb-4 truncate">{project.name}</p>
+                              <div className="flex flex-wrap gap-x-6 gap-y-2 mb-4">
                                 <div>
                                   <div className="text-[9px] tracking-[0.12em] uppercase text-[#5B6B72]">Depart</div>
                                   <div className="tix-mono text-sm text-[#12222D]">
@@ -241,11 +243,11 @@ export default function Home() {
                                   </div>
                                 </div>
                               </div>
-                              <div className="flex">
+                              <div className="flex flex-wrap">
                                 {project.members.map((member) => (
                                   <div
                                     key={member.id}
-                                    className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold border-2 border-[#F6F7F2] -ml-2 first:ml-0"
+                                    className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold border-2 border-[#F6F7F2] -ml-2 first:ml-0 shrink-0"
                                     style={{ backgroundColor: member.color }}
                                   >
                                     {member.name[0]}
@@ -254,14 +256,14 @@ export default function Home() {
                               </div>
                             </div>
 
-                            <div className="flex flex-col items-end justify-center gap-2 px-6 w-[180px] shrink-0 bg-[#EDEFE7]/60 border-l-2 border-dashed border-[#12222D]/20">
-                              <div className="text-right w-full">
+                            <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 px-5 sm:px-6 py-3 sm:py-0 sm:w-[180px] sm:shrink-0 bg-[#EDEFE7]/60 border-t-2 sm:border-t-0 sm:border-l-2 border-dashed border-[#12222D]/20">
+                              <div className="text-left sm:text-right min-w-0">
                                 <div className="text-[9px] tracking-[0.12em] uppercase text-[#5B6B72]">Total Spent</div>
                                 <div className="tix-mono text-lg font-bold text-[#12222D] truncate">
                                   {formatAmount(project.totalAmount)}
                                 </div>
                               </div>
-                              <div className="flex items-center gap-1 text-xs text-indigo-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="flex items-center gap-1 text-xs text-indigo-600 font-medium sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
                                 여행 보기
                                 <ArrowRight className="w-3.5 h-3.5" />
                               </div>
