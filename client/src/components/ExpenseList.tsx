@@ -131,7 +131,7 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
             </div>
 
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-gray-900 text-sm line-clamp-2 break-words">
+              <p className="font-semibold text-gray-900 text-sm line-clamp-2 break-normal">
                 {expense.title}
               </p>
               <div className="flex items-center gap-1.5 text-xs text-gray-400 mt-1 flex-wrap">
