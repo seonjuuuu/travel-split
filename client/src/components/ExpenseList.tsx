@@ -117,11 +117,11 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
         transition={{ delay: idx * 0.03 }}
       >
         <div
-          className="grid grid-cols-[1fr_auto] cursor-pointer"
+          className="grid grid-cols-1 sm:grid-cols-[1fr_auto] cursor-pointer"
           onClick={() => setExpandedId(isExpanded ? null : expense.id)}
         >
           {/* 메인: 아이콘 + 내용 */}
-          <div className="flex items-center gap-3 p-4 min-w-0">
+          <div className="flex items-center gap-3 p-4 pb-2 sm:pb-4 min-w-0">
             {/* 카테고리 아이콘 */}
             <div
               className="w-10 h-10 rounded-sm flex items-center justify-center shrink-0"
@@ -179,7 +179,7 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
           </div>
 
           {/* 금액 스텁 */}
-          <div className="flex flex-col items-end justify-center gap-1 px-4 min-w-[92px]">
+          <div className="flex sm:flex-col items-center sm:items-end justify-end sm:justify-center gap-2 sm:gap-1 px-4 pb-3 sm:pb-0 sm:min-w-[92px]">
             <span className="tix-mono font-bold text-gray-900 text-sm whitespace-nowrap">
               {formatAmount(expense.amount)}
             </span>
