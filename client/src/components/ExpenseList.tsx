@@ -396,8 +396,9 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
           );
         })}
 
-        {/* 여행 중 지출이 없고 사전 결제/개인경비만 있는 경우 */}
-        {tripExpenses.length === 0 &&
+        {/* 여행 중 지출이 없고 사전 결제/개인경비만 있는 경우 - "전체" 보기에서만, 사전결제만 필터링해서 볼 땐 안 뜨게 */}
+        {!selectedDate &&
+          tripExpenses.length === 0 &&
           (preTripExpenses.length > 0 || personalPreTripExpenses.length > 0) && (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <p className="text-sm text-gray-400">여행 중 지출이 없어요</p>
