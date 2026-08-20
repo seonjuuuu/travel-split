@@ -5,7 +5,7 @@ import { useLocation, useParams } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Plus, Users, BarChart3, Receipt, Calculator,
-  Settings, MapPin, CalendarDays, Grid3X3, Plane, User, UserPlus,
+  Settings, MapPin, CalendarDays, Grid3X3, Plane, UserPlus,
   Share2, Copy, Check, X, Link, ChevronLeft, ChevronRight, ListTodo,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -164,18 +164,14 @@ export default function ProjectPage() {
     todayStr >= project.startDate && todayStr <= project.endDate
       ? todayStr
       : project.startDate;
-  const personalExpenses = project.expenses.filter((e) => Boolean(e.isPersonal) === true);
-  const preTripExpenses = project.expenses.filter(
-    (e) => Boolean(e.isPreTrip) === true && Boolean(e.isPersonal) !== true
-  );
-  const tripExpenses = project.expenses.filter(
-    (e) => Boolean(e.isPreTrip) !== true && Boolean(e.isPersonal) !== true
-  );
+  // 사전결제는 개인경비 여부와 무관하게 날짜 없이 묶음 (개인경비 중 사전결제인 것은
+  // ExpenseList 안에서 "사전결제" 섹션 바로 아래 별도 그룹으로 다시 나뉘어 표시됨)
+  const preTripExpenses = project.expenses.filter((e) => Boolean(e.isPreTrip) === true);
+  // 사전결제가 아닌 지출은 개인경비든 아니든 전부 날짜별로 묶인다
+  const tripExpenses = project.expenses.filter((e) => Boolean(e.isPreTrip) !== true);
   // 날짜 필터 적용
   const dateFilteredExpenses = selectedDate === "pre-trip"
     ? preTripExpenses
-    : selectedDate === "personal"
-    ? personalExpenses
     : selectedDate
     ? tripExpenses.filter((e) => e.date === selectedDate)
     : project.expenses;
@@ -286,8 +282,6 @@ export default function ProjectPage() {
             <p className="text-xs font-medium text-[#5B6B72]">
               {selectedDate === "pre-trip"
                 ? "사전 결제 내역"
-                : selectedDate === "personal"
-                ? "개인 경비 내역"
                 : selectedDate
                 ? `${formatDate(selectedDate)} 선택됨`
                 : "전체 날짜"}
@@ -324,11 +318,6 @@ export default function ProjectPage() {
                   <Plane className="w-3 h-3" />
                   <span className="text-xs font-bold">사전</span>
                   <span className="text-[10px] opacity-70">{preTripExpenses.length}건</span>
-                </button>
-                <button onClick={() => setSelectedDate(selectedDate === "personal" ? null : "personal")} className={`tix-mono shrink-0 flex flex-col items-center gap-0.5 px-3 py-2 rounded-sm transition-all ${selectedDate === "personal" ? "bg-violet-500 text-white shadow-sm" : "bg-violet-100 text-violet-700 hover:bg-violet-200"}`}>
-                  <User className="w-3 h-3" />
-                  <span className="text-xs font-bold">개인</span>
-                  <span className="text-[10px] opacity-70">{personalExpenses.length}건</span>
                 </button>
                 {travelDates.map((date, idx) => {
                   const dayExpenses = tripExpenses.filter((e) => e.date === date);
@@ -607,7 +596,7 @@ export default function ProjectPage() {
 
       <AddExpenseModal open={showAddExpense} onClose={() => setShowAddExpense(false)} project={project}
         defaultDate={
-          selectedDate && selectedDate !== "pre-trip" && selectedDate !== "personal"
+          selectedDate && selectedDate !== "pre-trip"
             ? selectedDate
             : defaultExpenseDate
         }

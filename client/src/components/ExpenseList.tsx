@@ -54,15 +54,16 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
     }
   };
 
-  // 개인경비는 사전결제 여부와 무관하게 항상 별도 섹션으로 분리
-  const personalExpenses = expenses.filter((e) => Boolean(e.isPersonal) === true);
-  // isPreTrip 플래그로 분리 (날짜 무관, 개인경비는 제외)
+  // 사전결제(개인 아닌 것) - 날짜 무관 별도 섹션
   const preTripExpenses = expenses.filter(
     (e) => Boolean(e.isPreTrip) === true && Boolean(e.isPersonal) !== true
   );
-  const tripExpenses = expenses.filter(
-    (e) => Boolean(e.isPreTrip) !== true && Boolean(e.isPersonal) !== true
+  // 사전결제이면서 개인경비인 것 - 사전결제 섹션 바로 아래 별도 그룹으로 표시
+  const personalPreTripExpenses = expenses.filter(
+    (e) => Boolean(e.isPreTrip) === true && Boolean(e.isPersonal) === true
   );
+  // 나머지(사전결제 아닌 것)는 개인경비 여부와 무관하게 전부 날짜별로 그룹핑
+  const tripExpenses = expenses.filter((e) => Boolean(e.isPreTrip) !== true);
 
   if (expenses.length === 0) {
     return (
@@ -340,8 +341,8 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
           </div>
         )}
 
-        {/* 👤 개인경비 섹션 - 정산 제외, 결제자 본인 지출로만 관리 */}
-        {personalExpenses.length > 0 && (
+        {/* 👤 사전결제 개인경비 섹션 - 사전결제 섹션 바로 아래, 정산 제외 */}
+        {personalPreTripExpenses.length > 0 && (
           <div>
             <button
               onClick={() => setShowPersonal((v) => !v)}
@@ -350,15 +351,15 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5 bg-violet-100 text-violet-700 px-3 py-1.5 rounded-full">
                   <User className="w-3.5 h-3.5" />
-                  <span className="text-xs font-bold">개인 경비</span>
+                  <span className="text-xs font-bold">개인 경비 (사전결제)</span>
                   <span className="text-xs bg-violet-200 text-violet-800 rounded-full px-1.5 py-0.5 font-bold ml-0.5">
-                    {personalExpenses.length}
+                    {personalPreTripExpenses.length}
                   </span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="tix-mono text-xs font-bold text-violet-600">
-                  {formatAmount(personalExpenses.reduce((s, e) => s + e.amount, 0))}
+                  {formatAmount(personalPreTripExpenses.reduce((s, e) => s + e.amount, 0))}
                 </span>
                 {showPersonal ? (
                   <ChevronUp className="w-4 h-4 text-violet-400" />
@@ -377,7 +378,7 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
                   transition={{ duration: 0.2 }}
                   className="overflow-hidden"
                 >
-                  {renderExpenseTicket(personalExpenses)}
+                  {renderExpenseTicket(personalPreTripExpenses)}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -413,7 +414,7 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
 
         {/* 여행 중 지출이 없고 사전 결제/개인경비만 있는 경우 */}
         {tripExpenses.length === 0 &&
-          (preTripExpenses.length > 0 || personalExpenses.length > 0) && (
+          (preTripExpenses.length > 0 || personalPreTripExpenses.length > 0) && (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <p className="text-sm text-gray-400">여행 중 지출이 없어요</p>
             <p className="text-xs text-gray-300 mt-1">
