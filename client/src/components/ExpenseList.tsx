@@ -346,7 +346,7 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
                   </label>
                 )}
                 <span className="tix-mono text-xs font-bold text-amber-600 whitespace-nowrap">
-                  {formatAmount(preTripExpenses.reduce((s, e) => s + e.amount, 0))}
+                  {formatAmount(visiblePreTripExpenses.reduce((s, e) => s + e.amount, 0))}
                 </span>
                 <button onClick={() => setShowPreTrip((v) => !v)} className="shrink-0">
                   {showPreTrip ? (
@@ -378,11 +378,11 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
         {sortedDates.map((date) => {
           const dayExpenses = grouped[date];
           const dayPersonalExpenses = dayExpenses.filter((e) => Boolean(e.isPersonal));
-          const dayTotal = dayExpenses.reduce((s, e) => s + e.amount, 0);
           const showDayPersonal = !hiddenPersonalDates.has(date);
           const visibleDayExpenses = showDayPersonal
             ? dayExpenses
             : dayExpenses.filter((e) => !Boolean(e.isPersonal));
+          const visibleDayTotal = visibleDayExpenses.reduce((s, e) => s + e.amount, 0);
           const isDateOpen = !collapsedDates.has(date);
           const dateLabel = date !== "날짜 없음" ? formatDate(date) : "날짜 미지정";
 
@@ -412,7 +412,7 @@ export default function ExpenseList({ project, expenses, selectedDate, selectedM
                     </label>
                   )}
                   <span className="tix-mono text-xs font-bold text-indigo-600 whitespace-nowrap">
-                    {formatAmount(dayTotal)}
+                    {formatAmount(visibleDayTotal)}
                   </span>
                   <button onClick={() => toggleDateCollapse(date)} className="shrink-0">
                     {isDateOpen ? (
