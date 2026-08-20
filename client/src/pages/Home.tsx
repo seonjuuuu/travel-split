@@ -224,11 +224,11 @@ export default function Home() {
                             </button>
 
                             <div className="p-5 sm:p-6 min-w-0">
-                              <div className="flex items-center gap-2 mb-1 pr-8 sm:pr-0">
-                                <Plane className="w-4 h-4 text-indigo-600 shrink-0" />
-                                <h3 className="font-bold text-[#12222D] text-xl tracking-tight truncate">{project.destination}</h3>
+                              <h3 className="font-bold text-[#12222D] text-xl tracking-tight truncate mb-1 pr-8 sm:pr-0">{project.name}</h3>
+                              <div className="flex items-center gap-1.5 text-sm text-[#5B6B72] mb-4">
+                                <Plane className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                                <span className="truncate min-w-0">{project.destination}</span>
                               </div>
-                              <p className="text-sm text-[#5B6B72] mb-4 truncate">{project.name}</p>
                               <div className="flex flex-wrap gap-x-6 gap-y-2 mb-4">
                                 <div>
                                   <div className="text-[9px] tracking-[0.12em] uppercase text-[#5B6B72]">Depart</div>
