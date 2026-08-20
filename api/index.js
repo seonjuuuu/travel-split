@@ -21,11 +21,9 @@ var ENV = {
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
   gmailUser: process.env.GMAIL_USER ?? "",
   gmailAppPassword: process.env.GMAIL_APP_PASSWORD ?? "",
-  // VERCEL_URL is the unique per-deployment URL (changes every deploy, and
-  // can be behind Vercel's Deployment Protection wall) - NOT the stable
-  // domain users actually visit. VERCEL_PROJECT_PRODUCTION_URL is the
-  // assigned production domain and is what email links should point to.
-  appUrl: process.env.APP_URL ?? (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")
+  // Hardcoded prod domain (not VERCEL_URL - that's a unique per-deployment
+  // URL that can sit behind Vercel's Deployment Protection wall).
+  appUrl: process.env.APP_URL ?? (process.env.NODE_ENV === "production" ? "https://travel-split-kappa.vercel.app" : "http://localhost:3000")
 };
 
 // server/_core/mail.ts
