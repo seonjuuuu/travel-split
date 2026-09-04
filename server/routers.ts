@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { customAlphabet, nanoid } from "nanoid";
 import { z } from "zod";
 import type { DbExpense, DbTodo } from "../drizzle/schema";
+import { convertToKrw, getExchangeRateToKrw } from "./_core/fx";
 import { sendMemberJoinedEmail, sendTodoAssignedEmail } from "./_core/mail";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
@@ -217,6 +218,7 @@ export const appRouter = router({
         z.object({
           name: z.string().min(1),
           destination: z.string().min(1),
+          currency: z.string().length(3).default("KRW"),
           startDate: z.string(),
           endDate: z.string(),
           myName: z.string().min(1).default("나"),
@@ -229,6 +231,7 @@ export const appRouter = router({
           userId: ctx.user.id,
           name: input.name,
           destination: input.destination,
+          currency: input.currency,
           startDate: input.startDate,
           endDate: input.endDate,
           myName: input.myName,
@@ -255,6 +258,7 @@ export const appRouter = router({
           id: z.string(),
           name: z.string().min(1).optional(),
           destination: z.string().min(1).optional(),
+          currency: z.string().length(3).optional(),
           startDate: z.string().optional(),
           endDate: z.string().optional(),
           myName: z.string().min(1).optional(),
@@ -449,6 +453,22 @@ export const appRouter = router({
       }),
   }),
 
+  // ── 환율 ─────────────────────────────────────────────────────────
+  fx: router({
+    // 지출 입력 중 실시간 원화 환산 미리보기용
+    getRate: protectedProcedure
+      .input(z.object({ currency: z.string().length(3) }))
+      .query(async ({ input }) => {
+        const rate = await getExchangeRateToKrw(input.currency).catch(() => {
+          throw new TRPCError({
+            code: "SERVICE_UNAVAILABLE",
+            message: "환율 정보를 가져오지 못했습니다.",
+          });
+        });
+        return { rate };
+      }),
+  }),
+
   // ── 지출 ─────────────────────────────────────────────────────────
   expenses: router({
     add: protectedProcedure
@@ -457,6 +477,7 @@ export const appRouter = router({
           projectId: z.string(),
           title: z.string().min(1),
           amount: z.number().positive(),
+          currency: z.string().length(3).default("KRW"),
           category: CategoryEnum,
           payerId: z.string(),
           participantIds: z.array(z.string()),
@@ -470,11 +491,23 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         await assertProjectAccess(input.projectId, ctx.user.id);
         const id = nanoid();
+        // 사전결제는 항상 원화 - 클라이언트가 실수로 다른 통화를 보내도 서버에서 강제
+        const currency = input.isPreTrip ? "KRW" : input.currency;
+        const rate = await getExchangeRateToKrw(currency).catch(() => {
+          throw new TRPCError({
+            code: "SERVICE_UNAVAILABLE",
+            message: "환율 정보를 가져오지 못했습니다. 잠시 후 다시 시도해주세요.",
+          });
+        });
+        const converted = convertToKrw(input.amount, currency, rate);
         return createExpense({
           id,
           projectId: input.projectId,
           title: input.title,
-          amount: input.amount,
+          amount: converted.amount,
+          currency,
+          originalAmount: converted.originalAmount,
+          exchangeRate: converted.exchangeRate,
           category: input.category,
           payerId: input.payerId,
           participantIds: JSON.stringify(input.participantIds),
@@ -492,6 +525,7 @@ export const appRouter = router({
           id: z.string(),
           title: z.string().min(1).optional(),
           amount: z.number().positive().optional(),
+          currency: z.string().length(3).optional(),
           category: CategoryEnum.optional(),
           payerId: z.string().optional(),
           participantIds: z.array(z.string()).optional(),
@@ -506,11 +540,35 @@ export const appRouter = router({
         const expense = await getExpenseById(input.id);
         if (!expense) throw new TRPCError({ code: "NOT_FOUND", message: "지출을 찾을 수 없습니다" });
         await assertProjectAccess(expense.projectId, ctx.user.id);
-        const { id, participantIds, ...rest } = input;
+        const { id, participantIds, amount, currency, ...rest } = input;
+
+        // 금액 또는 통화가 바뀔 때만 원화 재환산 (불필요한 외부 호출 방지)
+        const isPreTrip = input.isPreTrip ?? expense.isPreTrip;
+        let converted: { amount: number; originalAmount: number; exchangeRate: number } | undefined;
+        if (amount !== undefined || currency !== undefined) {
+          const effectiveCurrency = isPreTrip ? "KRW" : currency ?? expense.currency;
+          const effectiveAmount = amount ?? expense.originalAmount ?? expense.amount;
+          const rate = await getExchangeRateToKrw(effectiveCurrency).catch(() => {
+            throw new TRPCError({
+              code: "SERVICE_UNAVAILABLE",
+              message: "환율 정보를 가져오지 못했습니다. 잠시 후 다시 시도해주세요.",
+            });
+          });
+          converted = convertToKrw(effectiveAmount, effectiveCurrency, rate);
+        }
+
         await updateExpense(id, {
           ...rest,
           ...(participantIds !== undefined
             ? { participantIds: JSON.stringify(participantIds) }
+            : {}),
+          ...(converted
+            ? {
+                amount: converted.amount,
+                currency: isPreTrip ? "KRW" : currency ?? expense.currency,
+                originalAmount: converted.originalAmount,
+                exchangeRate: converted.exchangeRate,
+              }
             : {}),
         });
         return { success: true };

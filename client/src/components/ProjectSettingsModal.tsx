@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import type { TravelProject } from "@/lib/types";
 import { Settings, MapPin, Calendar, Plane } from "lucide-react";
+import { isKnownCurrency } from "@/lib/currencies";
+import CurrencyCombobox from "@/components/CurrencyCombobox";
 
 interface Props {
   open: boolean;
@@ -29,9 +31,13 @@ export default function ProjectSettingsModal({ open, onClose, project, onRefresh
   const [form, setForm] = useState({
     name: project.name,
     destination: project.destination,
+    currency: project.currency ?? "KRW",
     startDate: project.startDate,
     endDate: project.endDate,
   });
+  const [showCustomCurrency, setShowCustomCurrency] = useState(
+    !isKnownCurrency(project.currency ?? "KRW")
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -39,9 +45,11 @@ export default function ProjectSettingsModal({ open, onClose, project, onRefresh
       setForm({
         name: project.name,
         destination: project.destination,
+        currency: project.currency ?? "KRW",
         startDate: project.startDate,
         endDate: project.endDate,
       });
+      setShowCustomCurrency(!isKnownCurrency(project.currency ?? "KRW"));
       setErrors({});
     }
   }, [open, project]);
@@ -50,6 +58,7 @@ export default function ProjectSettingsModal({ open, onClose, project, onRefresh
     const errs: Record<string, string> = {};
     if (!form.name.trim()) errs.name = "여행 이름을 입력해주세요";
     if (!form.destination.trim()) errs.destination = "여행지를 입력해주세요";
+    if (!/^[A-Z]{3}$/.test(form.currency)) errs.currency = "통화 코드 3자리를 입력해주세요 (예: MYR)";
     if (!form.startDate) errs.startDate = "시작일을 선택해주세요";
     if (!form.endDate) errs.endDate = "종료일을 선택해주세요";
     if (form.startDate && form.endDate && form.startDate > form.endDate)
@@ -69,7 +78,7 @@ export default function ProjectSettingsModal({ open, onClose, project, onRefresh
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md rounded-2xl p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-md rounded-2xl p-0 overflow-hidden max-h-[90vh] overflow-y-auto">
         <div className="bg-gray-900 px-6 pt-5 pb-4">
           <div className="flex items-center gap-2 mb-1">
             <Settings className="w-4 h-4 text-gray-400" />
@@ -109,6 +118,23 @@ export default function ProjectSettingsModal({ open, onClose, project, onRefresh
             {errors.destination && (
               <p className="text-xs text-red-500">{errors.destination}</p>
             )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium text-gray-700">통화</Label>
+            <CurrencyCombobox
+              value={form.currency}
+              onChange={(code) => {
+                setForm({ ...form, currency: code });
+                setShowCustomCurrency(false);
+              }}
+              isOther={showCustomCurrency}
+              onSelectOther={() => {
+                setShowCustomCurrency(true);
+                setForm({ ...form, currency: "" });
+              }}
+              error={errors.currency}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">

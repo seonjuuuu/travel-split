@@ -8,7 +8,8 @@ import { Trash2, Edit2, ChevronDown, ChevronUp, Clock, Plane, Receipt, StickyNot
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import type { Expense, TravelProject } from "@/lib/types";
-import { CATEGORY_CONFIG, formatAmount, formatDate } from "@/lib/types";
+import { CATEGORY_CONFIG, formatAmount, formatDate, formatForeignAmount } from "@/lib/types";
+import { getCurrencySymbol } from "@/lib/currencies";
 import AddExpenseModal from "@/components/AddExpenseModal";
 
 interface Props {
@@ -210,6 +211,11 @@ export default function ExpenseList({ project, expenses: allExpenses, selectedDa
 
           {/* 금액 스텁 */}
           <div className="flex sm:flex-col items-center sm:items-end justify-end sm:justify-center gap-2 sm:gap-1 px-4 pb-3 sm:pb-0 sm:min-w-[92px]">
+            {expense.currency && expense.currency !== "KRW" && expense.originalAmount != null && (
+              <span className="text-gray-400 text-[11px] whitespace-nowrap">
+                {formatForeignAmount(expense.originalAmount, getCurrencySymbol(expense.currency))}
+              </span>
+            )}
             <span className="tix-mono font-bold text-gray-900 text-sm whitespace-nowrap">
               {formatAmount(expense.amount)}
             </span>

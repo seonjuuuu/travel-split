@@ -1,0 +1,1 @@
+ALTER TABLE "travel_projects" ADD COLUMN "currency" varchar(3) DEFAULT 'KRW' NOT NULL;

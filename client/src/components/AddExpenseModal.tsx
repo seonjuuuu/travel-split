@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import type { Expense, ExpenseCategory, TravelProject } from "@/lib/types";
 import { CATEGORY_CONFIG, getDatesInRange, formatDate, formatDayOfWeek } from "@/lib/types";
+import { CURRENCIES, DOMESTIC_CURRENCY, COUNTRY_CURRENCIES, getCurrencySymbol } from "@/lib/currencies";
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock, Plane, User, Users } from "lucide-react";
 
 interface Props {
@@ -55,6 +56,13 @@ export default function AddExpenseModal({
     scrollLeft: scrollDatesLeft,
     scrollRight: scrollDatesRight,
   } = useDragScroll<HTMLDivElement>();
+  const {
+    ref: currencyScrollRef,
+    canScrollLeft: currencyCanScrollLeft,
+    canScrollRight: currencyCanScrollRight,
+    scrollLeft: scrollCurrencyLeft,
+    scrollRight: scrollCurrencyRight,
+  } = useDragScroll<HTMLDivElement>();
   const { user } = useAuth();
   // 로그인 계정과 연결된 멤버(진짜 "나") 우선, 없으면 isMe로 표시된 멤버로 폴백
   const myMemberId =
@@ -64,6 +72,30 @@ export default function AddExpenseModal({
   const [isPreTrip, setIsPreTrip] = useState(defaultIsPreTrip);
   const [isSharedCost, setIsSharedCost] = useState(Boolean(editExpense?.isSharedCost));
   const [isPersonal, setIsPersonal] = useState(Boolean(editExpense?.isPersonal));
+
+  // 국내여행(프로젝트 기본 통화가 KRW)이면 통화 선택 자체를 숨기고 항상 원화
+  const isDomesticTrip = (project.currency ?? "KRW") === "KRW";
+  // 이 여행에서 정한 통화가 자주 쓰는 12개 목록에 없는 경우(예: 튀르키예)도 칩에 항상 나오도록 보정
+  const projectCurrencyChip =
+    !isDomesticTrip && project.currency
+      ? (COUNTRY_CURRENCIES.find((c) => c.code === project.currency) ?? {
+          code: project.currency,
+          symbol: getCurrencySymbol(project.currency),
+          country: project.currency,
+        })
+      : null;
+  const currencyChipOptions = [
+    DOMESTIC_CURRENCY,
+    ...(projectCurrencyChip ? [projectCurrencyChip] : []),
+    ...CURRENCIES.filter((c) => c.code !== project.currency),
+  ];
+  // 여행 중 지출 기본 통화 - 여행 만들 때 정한 통화 우선, 없으면 이 여행에서 가장 최근에 쓴 외화
+  const defaultCurrency =
+    (project.currency && project.currency !== "KRW" ? project.currency : undefined) ??
+    [...project.expenses].reverse().find((e) => e.currency && e.currency !== "KRW")
+      ?.currency ??
+    CURRENCIES[0].code;
+  const [currency, setCurrency] = useState(editExpense?.currency ?? defaultCurrency);
 
   // 공동경비/개인경비는 서로 배타적 - 하나를 켜면 다른 하나는 자동으로 꺼진다
   const toggleSharedCost = () => {
@@ -88,7 +120,7 @@ export default function AddExpenseModal({
     title: "",
     amount: "",
     category: "식비" as ExpenseCategory,
-    payerId: project.members[0]?.id || "",
+    payerId: myMemberId || project.members[0]?.id || "",
     participantIds: project.members.map((m) => m.id),
     date: defaultDate || project.startDate,
     note: "",
@@ -101,6 +133,7 @@ export default function AddExpenseModal({
       setIsPreTrip(preTrip);
       setIsSharedCost(Boolean(editExpense.isSharedCost));
       setIsPersonal(Boolean(editExpense.isPersonal));
+      setCurrency(editExpense.currency ?? "KRW");
       setForm({
         title: editExpense.title,
         amount: editExpense.amount.toString(),
@@ -117,11 +150,12 @@ export default function AddExpenseModal({
       setIsPreTrip(defaultIsPreTrip);
       setIsSharedCost(false);
       setIsPersonal(false);
+      setCurrency(defaultCurrency);
       setForm({
         title: "",
         amount: "",
         category: "식비",
-        payerId: project.members[0]?.id || "",
+        payerId: myMemberId || project.members[0]?.id || "",
         participantIds: project.members.map((m) => m.id),
         date: defaultDate || project.startDate,
         note: "",
@@ -152,7 +186,8 @@ export default function AddExpenseModal({
 
     const expenseData = {
       title: form.title.trim(),
-      amount: Math.round(Number(form.amount)),
+      amount: Number(form.amount),
+      currency: isPreTrip || isDomesticTrip ? "KRW" : currency,
       category: form.category,
       payerId: form.payerId,
       participantIds: isPersonal ? [form.payerId] : form.participantIds,
@@ -192,12 +227,23 @@ export default function AddExpenseModal({
       ? Math.round(amountNum / form.participantIds.length)
       : 0;
 
+  // 외화로 입력 중일 때만 실시간 환율 조회 (원화/사전결제/국내여행은 환산 필요 없음)
+  const isForeignEntry = !isPreTrip && !isDomesticTrip && currency !== "KRW";
+  const rateQuery = trpc.fx.getRate.useQuery(
+    { currency },
+    { enabled: isForeignEntry, staleTime: 10 * 60 * 1000 }
+  );
+  const krwPreview =
+    isForeignEntry && rateQuery.data && amountNum > 0
+      ? Math.round(amountNum * rateQuery.data.rate)
+      : null;
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md rounded-2xl p-0 overflow-hidden max-h-[90vh] overflow-y-auto">
         {/* 헤더 */}
         <div
-          className={`px-6 pt-5 pb-4 sticky top-0 z-10 transition-colors min-w-0 ${
+          className={`px-6 pt-5 pb-4 sticky top-0 z-20 shadow-md transition-colors min-w-0 ${
             isPreTrip ? "bg-amber-500" : "bg-indigo-600"
           }`}
         >
@@ -374,9 +420,73 @@ export default function AddExpenseModal({
             {errors.title && <p className="text-xs text-red-500">{errors.title}</p>}
           </div>
 
+          {/* 통화 - 여행 중일 때만, 해외여행이면 현지 통화 그대로 입력 (국내여행은 항상 원화라 숨김) */}
+          {!isPreTrip && !isDomesticTrip && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700">통화</Label>
+              <div className="relative min-w-0">
+                {currencyChipOptions.length > 5 && (
+                  <button
+                    type="button"
+                    onClick={scrollCurrencyLeft}
+                    disabled={!currencyCanScrollLeft}
+                    className={`absolute left-0 top-1/2 -translate-y-1/2 z-10 w-6 h-6 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center transition-opacity ${
+                      currencyCanScrollLeft
+                        ? "text-gray-400 hover:text-gray-600"
+                        : "text-gray-200 opacity-40 cursor-default"
+                    }`}
+                    aria-label="이전 통화 보기"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                <div
+                  ref={currencyScrollRef}
+                  className={`flex gap-2 overflow-x-auto pb-1 scrollbar-hide cursor-grab active:cursor-grabbing touch-pan-x ${currencyChipOptions.length > 5 ? "pl-7 pr-7" : ""}`}
+                >
+                  {currencyChipOptions.map((c) => {
+                    const isSelected = currency === c.code;
+                    return (
+                      <button
+                        key={c.code}
+                        type="button"
+                        onClick={() => setCurrency(c.code)}
+                        className={`shrink-0 flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition-all ${
+                          isSelected
+                            ? "bg-indigo-600 text-white"
+                            : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                        }`}
+                      >
+                        <span className="text-sm font-bold leading-none">{c.symbol}</span>
+                        <span className="text-[9px] opacity-70">{c.code === "KRW" ? "원화" : c.code}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {currencyChipOptions.length > 5 && (
+                  <button
+                    type="button"
+                    onClick={scrollCurrencyRight}
+                    disabled={!currencyCanScrollRight}
+                    className={`absolute right-0 top-1/2 -translate-y-1/2 z-10 w-6 h-6 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center transition-opacity ${
+                      currencyCanScrollRight
+                        ? "text-gray-400 hover:text-gray-600"
+                        : "text-gray-200 opacity-40 cursor-default"
+                    }`}
+                    aria-label="다음 통화 보기"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* 금액 */}
           <div className="space-y-1.5">
-            <Label className="text-sm font-medium text-gray-700">금액 (원)</Label>
+            <Label className="text-sm font-medium text-gray-700">
+              금액 ({isPreTrip || isDomesticTrip ? "원" : getCurrencySymbol(currency)})
+            </Label>
             <div className="relative">
               <Input
                 type="text"
@@ -390,14 +500,28 @@ export default function AddExpenseModal({
                 className={`rounded-xl border-gray-200 pr-12 ${errors.amount ? "border-red-400" : ""}`}
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
-                원
+                {isPreTrip || isDomesticTrip ? "원" : getCurrencySymbol(currency)}
               </span>
             </div>
             {errors.amount && <p className="text-xs text-red-500">{errors.amount}</p>}
+            {isForeignEntry && amountNum > 0 && (
+              <p className="text-xs font-medium text-gray-500">
+                {rateQuery.isLoading
+                  ? "환율 조회 중..."
+                  : krwPreview != null
+                    ? `≈ ${krwPreview.toLocaleString()}원`
+                    : "환율 조회 실패 - 저장 시 다시 시도돼요"}
+              </p>
+            )}
             {!isPersonal && amountNum > 0 && form.participantIds.length > 0 && (
               <p className={`text-xs font-medium ${isPreTrip ? "text-amber-600" : "text-indigo-600"}`}>
-                1인당 {perPerson.toLocaleString()}원
+                1인당 {isPreTrip || isDomesticTrip ? "" : getCurrencySymbol(currency)}{perPerson.toLocaleString()}{isPreTrip || isDomesticTrip ? "원" : ""}
+                {isForeignEntry && krwPreview != null &&
+                  ` (≈ ${Math.round(krwPreview / form.participantIds.length).toLocaleString()}원)`}
               </p>
+            )}
+            {!isPreTrip && !isDomesticTrip && (
+              <p className="text-[11px] text-gray-400">현지 통화로 입력하면 자동으로 원화 환산되어 저장돼요</p>
             )}
           </div>
 
@@ -452,7 +576,9 @@ export default function AddExpenseModal({
               </div>
             ) : (
               <div className="flex flex-wrap gap-2">
-                {project.members.map((member) => (
+                {[...project.members]
+                  .sort((a, b) => (a.id === myMemberId ? -1 : b.id === myMemberId ? 1 : 0))
+                  .map((member) => (
                   <button
                     key={member.id}
                     type="button"

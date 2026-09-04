@@ -122,7 +122,7 @@ export async function createProject(data: InsertTravelProject) {
 export async function updateProject(
   id: string,
   userId: string,
-  data: Partial<Pick<InsertTravelProject, "name" | "destination" | "startDate" | "endDate" | "myName">>
+  data: Partial<Pick<InsertTravelProject, "name" | "destination" | "currency" | "startDate" | "endDate" | "myName">>
 ) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");

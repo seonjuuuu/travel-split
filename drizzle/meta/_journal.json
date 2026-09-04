@@ -50,6 +50,20 @@
       "when": 1787207158593,
       "tag": "0006_minor_giant_man",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788528108045,
+      "tag": "0007_lowly_morph",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788528951432,
+      "tag": "0008_fluffy_enchantress",
+      "breakpoints": true
     }
   ]
 }

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import CurrencyCombobox from "@/components/CurrencyCombobox";
 
 interface Props {
   open: boolean;
@@ -18,10 +19,12 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
   const [form, setForm] = useState({
     name: "",
     destination: "",
+    currency: "KRW",
     startDate: "",
     endDate: "",
     myName: "",
   });
+  const [showCustomCurrency, setShowCustomCurrency] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const createProject = trpc.projects.create.useMutation({
@@ -37,6 +40,7 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
     if (!form.myName.trim()) errs.myName = "내 이름을 입력해주세요";
     if (!form.name.trim()) errs.name = "여행 이름을 입력해주세요";
     if (!form.destination.trim()) errs.destination = "여행지를 입력해주세요";
+    if (!/^[A-Z]{3}$/.test(form.currency)) errs.currency = "통화 코드 3자리를 입력해주세요 (예: MYR)";
     if (!form.startDate) errs.startDate = "시작일을 선택해주세요";
     if (!form.endDate) errs.endDate = "종료일을 선택해주세요";
     if (form.startDate && form.endDate && form.endDate < form.startDate)
@@ -51,6 +55,7 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
     createProject.mutate({
       name: form.name.trim(),
       destination: form.destination.trim(),
+      currency: form.currency,
       startDate: form.startDate,
       endDate: form.endDate,
       myName: form.myName.trim(),
@@ -58,14 +63,15 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
   };
 
   const handleClose = () => {
-    setForm({ name: "", destination: "", startDate: "", endDate: "", myName: "" });
+    setForm({ name: "", destination: "", currency: "KRW", startDate: "", endDate: "", myName: "" });
+    setShowCustomCurrency(false);
     setErrors({});
     onClose();
   };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md rounded-2xl p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-md rounded-2xl p-0 overflow-hidden max-h-[90vh] overflow-y-auto">
         <div className="bg-indigo-600 px-6 pt-6 pb-5">
           <div className="flex items-center gap-2 mb-1">
             <Plane className="w-5 h-5 text-indigo-200" />
@@ -113,6 +119,25 @@ export default function CreateProjectModal({ open, onClose, onCreated }: Props) 
               className={`rounded-xl border-gray-200 ${errors.destination ? "border-red-400" : ""}`}
             />
             {errors.destination && <p className="text-xs text-red-500">{errors.destination}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium text-gray-700">통화</Label>
+            <CurrencyCombobox
+              value={form.currency}
+              onChange={(code) => {
+                setForm({ ...form, currency: code });
+                setShowCustomCurrency(false);
+              }}
+              isOther={showCustomCurrency}
+              onSelectOther={() => {
+                setShowCustomCurrency(true);
+                setForm({ ...form, currency: "" });
+              }}
+              error={errors.currency}
+            />
+            <p className="text-[11px] text-gray-400">
+              여행 중 지출을 이 통화로 입력하면 자동으로 원화 환산돼요
+            </p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

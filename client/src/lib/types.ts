@@ -84,6 +84,9 @@ export interface Expense {
   isSharedCost?: boolean; // 공동경비 - 정산 제외 (결제자 없이 공동 부담)
   isPersonal?: boolean; // 개인경비 - 정산 제외, 결제자 본인의 지출로만 기록
   deleteVotes?: string[]; // 삭제(나가기) 누른 사람들의 memberId - 이해관계자 전원이 모이면 실제 삭제됨
+  currency?: string; // ISO 통화 코드, 기본 KRW
+  originalAmount?: number | null; // 사용자가 입력한 원래 통화 금액 (KRW면 amount와 동일)
+  exchangeRate?: number | null; // 저장 시점 KRW/1단위 환율 (KRW면 1)
 }
 
 export interface Todo {
@@ -101,6 +104,7 @@ export interface TravelProject {
   id: string;
   name: string;
   destination: string;
+  currency?: string; // 이 여행의 기본 통화 (국내여행이면 KRW)
   startDate: string; // YYYY-MM-DD
   endDate: string; // YYYY-MM-DD
   members: Member[];
@@ -216,6 +220,11 @@ export function formatDayOfWeek(dateStr: string): string {
 
 export function formatAmount(amount: number): string {
   return amount.toLocaleString("ko-KR") + "원";
+}
+
+// 여행 중 지출을 현지 통화로 입력한 경우, 원본 통화 금액 표시용 (예: "¥3,000")
+export function formatForeignAmount(amount: number, symbol: string): string {
+  return symbol + amount.toLocaleString("ko-KR");
 }
 
 // 정산 계산 로직

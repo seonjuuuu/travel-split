@@ -43,6 +43,7 @@ export const travelProjects = pgTable("travel_projects", {
   userId: uuid("userId").notNull(), // 소유자 (profiles.id)
   name: varchar("name", { length: 100 }).notNull(),
   destination: varchar("destination", { length: 100 }).notNull(),
+  currency: varchar("currency", { length: 3 }).notNull().default("KRW"), // 이 여행에서 기본으로 쓰는 통화 (국내여행이면 KRW)
   startDate: varchar("startDate", { length: 10 }).notNull(), // YYYY-MM-DD
   endDate: varchar("endDate", { length: 10 }).notNull(),   // YYYY-MM-DD
   myName: varchar("myName", { length: 50 }).notNull().default("나"),
@@ -76,7 +77,10 @@ export const expenses = pgTable("expenses", {
   id: varchar("id", { length: 36 }).primaryKey(), // nanoid
   projectId: varchar("projectId", { length: 36 }).notNull(),
   title: varchar("title", { length: 200 }).notNull(),
-  amount: real("amount").notNull(),
+  amount: real("amount").notNull(), // 항상 원화(KRW) 환산 금액
+  currency: varchar("currency", { length: 3 }).notNull().default("KRW"),
+  originalAmount: real("originalAmount"), // 사용자가 입력한 원래 통화 금액 (KRW면 amount와 동일)
+  exchangeRate: real("exchangeRate"), // 저장 시점 KRW/1단위 환율 (KRW면 1)
   category: categoryEnum("category").notNull().default("기타"),
   payerId: varchar("payerId", { length: 36 }).notNull(), // projectMembers.id
   participantIds: varchar("participantIds", { length: 2000 }).notNull().default("[]"), // JSON array
